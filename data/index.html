@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MushLight Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+  </head>
+  <body>
+    <div class="topnav">
+      <h1>MushLight Control</h1>
+    </div>
+    <div class="content">
+      <div class="card-grid">
+
+        <div class="card">
+          <p class="card-title">Sensores</p>
+  <p>
+    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
+    <span class="dht-labels">Particula por milhao suspensa no ar</span> 
+    <span id="temperature">%CO2%</span>
+    <sup class="units">PPM</sup>
+  </p>
+  <p><i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
+    <span class="dht-labels">Temperatura</span> 
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+  </p>
+  <p>
+    <i class="fas fa-tint" style="color:#00add6;"></i> 
+    <span class="dht-labels">Umidade</span>
+    <span id="humidity">%HUMIDITY%</span>
+    <sup class="units">&percnt;</sup>
+  </p>
+  <p>
+    <i class="fas fa-tint" style="color:#00add6;"></i> 
+    <span class="dht-labels">Pressao Atmosferica</span>
+    <span id="humidity">%PRESSAO%</span>
+    <sup class="units">kPa</sup>
+  </p>
+
+
+
+
+ <form action="/" method="POST">  
+ <p class="card-title">Modo Texto</p>
+<p><input type="text" id ="txt" name="txt" value="MushLight"><br>
+<input type ="submit" value ="Enviar"><br>
+ </form>
+
+<p></a>
+</p>
+<br>
+
+
+        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>LED</p>
+          <p>
+            <a href="ledon"><button class="button-on">LIGA</button></a>
+            <a href="off"><button class="button-off">OFF</button></a>
+          </p>
+
+<table>
+<tbody>
+    <tr>
+     <td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Gira texto</p>
+          <p>
+            <a href="runningtext"><button class="button-on">LIGA</button></a>
+          </p>
+
+</td>     
+<td>
+          
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Dimmer1</p>
+          <p>
+            <a href="dimmer1"><button class="button-on">LIGA</button></a>
+          </p>
+          
+</td>     
+<td>
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Dimmer2</p>
+          <p>
+            <a href="dimmer2"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Dimmer3</p>
+          <p>
+            <a href="dimmer3"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+    <tr>
+     <td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Temperatura</p>
+          <p>
+            <a href="temp"><button class="button-on">LIGA</button></a>
+          </p>
+
+</td>     
+<td>
+          
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Humidade</p>
+          <p>
+            <a href="humi"><button class="button-on">LIGA</button></a>
+          </p>
+          
+</td>     
+<td>
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Pressao</p>
+          <p>
+            <a href="pressao"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> CO2</p>
+          <p>
+            <a href="co2"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+
+
+    <tr>
+     <td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> MatrixMode</p>
+          <p>
+            <a href="matrixon"><button class="button-on">LIGA</button></a>
+          </p>
+
+</td>     
+<td>
+          
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fire Mode</p>
+          <p>
+            <a href="fire2"><button class="button-on">LIGA</button></a>
+          </p>
+          
+</td>     
+<td>
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Rainbow Horizontal</p>
+          <p>
+            <a href="rainbow2"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Rainbow Mode</p>
+          <p>
+            <a href="rainbowon"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+
+<tr>
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Plasma Mode</p>
+          <p>
+            <a href="plasma"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+          
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Zebra Mode</p>
+          <p>
+            <a href="zebra"><button class="button-on">LIGA</button></a>
+          
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Clock Mode</p>
+          <p>
+            <a href="clock"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+       
+
+             <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Ocean Mode</p>
+          <p>
+            <a href="oceano"><button class="button-on">LIGA</button></a>
+</td>
+</tr>
+<td>
+
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Forest Mode</p>
+          <p>
+            <a href="forest"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Madness Mode</p><p>
+            <a href="madness"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Lava Mode</p><p>
+            <a href="lava"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Mario</p>
+          <p>
+            <a href="gif"><button class="button-on">LIGA</button></a>
+
+
+</td>
+</tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fogo</p>
+          <p>
+            <a href="gif2"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fantasma</p>
+          <p>
+            <a href="gif3"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> IronMan</p>
+          <p>
+            <a href="gif4"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Imagens</p>
+          <p>
+            <a href="gif5"><button class="button-on">LIGA</button></a>
+</td>
+</tr>
+<td>
+
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> SmileFace</p>
+          <p>
+            <a href="gif6"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Gif7 Mode</p>
+          <p>
+            <a href="gif7"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Gif8 Mode</p>
+          <p>
+            <a href="gif8"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Balls Mode</p>
+          <p>
+            <a href="balls"><button class="button-on">LIGA</button></a>
+
+</td>
+</tr>
+<tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Pride Mode</p>
+          <p>
+            <a href="pride"><button class="button-on">LIGA</button></a>
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fire2 Mode</p>
+          <p>
+            <a href="fireon"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> VERDE</p>
+          <p>
+            <a href="green"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> VERMELHO</p>
+          <p>
+            <a href="red"><button class="button-on">LIGA</button></a>
+</td>
+
+</tr>
+<tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Swirl Mode</p>
+          <p>
+            <a href="swirl"><button class="button-on">LIGA</button></a>
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Tetris Mode</p>
+          <p>
+            <a href="tetris"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Snake Mode</p>
+          <p>
+            <a href="snake"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Arkanoid Mode</p>
+          <p>
+            <a href="arkanoid"><button class="button-on">LIGA</button></a>
+</td>
+
+</tr>
+<tr>
+<td>
+
+</td>
+
+
+</table>
+          
+
+          </div>
+          <p class="state">State: %STATE%</p>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
