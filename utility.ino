@@ -92,12 +92,7 @@ void drawDigit5x7(byte digit, byte X, byte Y, CRGB color) {
 
 
 
-// залить все
-void fillAll(CRGB color) {
-  for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i] = color;
-  }
-}
+
 
 // **************** НАСТРОЙКА МАТРИЦЫ ****************
 #if (CONNECTION_ANGLE == 0 && STRIP_DIRECTION == 0)

@@ -1,8 +1,345 @@
+// **************** НАСТРОЙКИ ЭФФЕКТОВ ****************
+// эффект "шарики"
+#define BALLS_AMOUNT 1    // количество "шариков"
+#define CLEAR_PATH 0      // очищать путь
+#define BALL_TRACK 1      // (0 / 1) - вкл/выкл следы шариков
+#define TRACK_STEP 70     // длина хвоста шарика (чем больше цифра, тем хвост короче)
+
+// эффект "квадратик"
+#define BALL_SIZE 15       // размер квадрата
+#define RANDOM_COLOR 1    // случайный цвет при отскоке
+
+// эффект "огонь"
+#define SPARKLES 5        // вылетающие угольки вкл выкл
+#define HUE_ADD 0         // добавка цвета в огонь (от 0 до 230) - меняет весь цвет пламени
+
+// эффект "кометы"
+#define TAIL_STEP 100     // длина хвоста кометы
+#define SATURATION 100    // насыщенность кометы (от 0 до 255)
+#define STAR_DENSE 10     // количество (шанс появления) комет
+
+// эффект "конфетти"
+#define DENSE 1           // плотность конфетти
+#define BRIGHT_STEP 70    // шаг уменьшения яркости
+
+// эффект "снег"
+#define SNOW_DENSE 10     // плотность снегопада
+
+// эффект "Светляки"
+#define LIGHTERS_AM 35    // количество светляков
+
+// --------------------- ДЛЯ РАЗРАБОТЧИКОВ ----------------------
+
+byte hue;
+
+
 uint16_t XY(uint8_t x, uint8_t y) { 
   return getPixelNumber(x, y); 
 }
+void fader(byte step) {
+  for (byte i = 0; i < WIDTH; i++) {
+    for (byte j = 0; j < HEIGHT; j++) {
+      fadePixel(i, j, step);
+    }
+  }
+}
+
+void fadePixel(byte i, byte j, byte step) {     // новый фейдер
+  int pixelNum = getPixelNumber(i, j);
+  if (getPixColor(pixelNum) == 0) return;
+
+  if (leds[pixelNum].r >= 30 ||
+      leds[pixelNum].g >= 30 ||
+      leds[pixelNum].b >= 30) {
+    leds[pixelNum].fadeToBlackBy(step);
+  } else {
+    leds[pixelNum] = 0;
+  }
+}
 
 
+void sparklesRoutine() {
+  if (loadingFlag) {
+    loadingFlag = false;
+    FastLED.clear();  // очистить
+  }
+  for (byte i = 0; i < DENSE; i++) {
+    byte x = random(0, WIDTH);
+    byte y = random(0, HEIGHT);
+    if (getPixColorXY(x, y) == 0)
+      leds[getPixelNumber(x, y)] = CHSV(random(0, 255), 255, 255);
+  }
+  fader(BRIGHT_STEP);
+}
+
+
+// ********************* БУДИЛЬНИК-РАССВЕТ *********************
+
+int8_t row, col;                   // Для эффекта спирали  - точка "глолвы" змейки, бегающей по спирали (первая змейка для круговой спирали)
+int8_t row2, col2;                 // Для эффекта спирали  - точка "глолвы" змейки, бегающей по спирали (вторая змейка для плоской спирали)
+int8_t dir, dir2;                  // Для эффекта спирали на плоскости - направление движениия змейки: 0 - вниз; 1 - влево; 2 - вверх; 3 - вправо; 
+int8_t range[4], range2[4];        // Для эффекта спирали на плоскости - границы разворачивания спирали; 
+uint16_t tail[8], tail2[8];        // Для эффекта спирали на плоскости - позиции хвоста змейки. HiByte = x, LoByte=y
+CHSV tailColor;                    // Цвет последней точки "хвоста" змейки. Этот же цвет используется для предварительной заливки всей матрицы
+CHSV tailColor2;                   // Предварительная заливка нужна для корректного отображения часов поверх специальных эффектов будильника
+boolean firstRowFlag;              // Флаг начала самого первого ряда первого кадра, чтобы не рисовать "хвост" змейки в предыдущем кадре, которого не было.
+byte dawnBrightness;               // Текущая яркость будильника "рассвет"
+byte tailBrightnessStep;           // Шаг приращения яркости будильника "рассвет"
+byte dawnColorIdx;                
+byte dawnColorPrevIdx;             
+                                   
+byte step_cnt;                     
+
+byte dawnColorHue[16]  PROGMEM = {0, 16, 28, 36, 44, 52, 57, 62, 64, 66, 66, 64, 62, 60, 128, 128};              // Цвет заполнения - HUE змейки 1
+byte dawnColorSat[16]  PROGMEM = {255, 250, 245, 235, 225, 210, 200, 185, 170, 155, 130, 105, 80, 50, 25, 80};   // Цвет заполнения - SAT змейки 1
+byte dawnColorHue2[16] PROGMEM = {0, 16, 28, 36, 44, 52, 57, 62, 64, 66, 66, 64, 62, 60, 128, 128};              // Цвет заполнения - HUE змейки 2
+byte dawnColorSat2[16] PROGMEM = {255, 250, 245, 235, 225, 210, 200, 185, 170, 155, 130, 105, 80, 50, 25, 80};   // Цвет заполнения - SAT змейки 2
+
+
+
+void starfallRoutine() {
+  if (loadingFlag) {
+
+    loadingFlag = false;
+    FastLED.clear();  // очистить
+  }
+  
+  // заполняем головами комет левую и верхнюю линию
+  for (byte i = HEIGHT / 2; i < HEIGHT; i++) {
+    if (getPixColorXY(0, i) == 0
+        && (random(0, STAR_DENSE) == 0)
+        && getPixColorXY(0, i + 1) == 0
+        && getPixColorXY(0, i - 1) == 0)
+      leds[getPixelNumber(0, i)] = CHSV(random(0, 200), SATURATION, 255);
+  }
+  
+  for (byte i = 0; i < WIDTH / 2; i++) {
+    if (getPixColorXY(i, HEIGHT - 1) == 0
+        && (random(0, STAR_DENSE) == 0)
+        && getPixColorXY(i + 1, HEIGHT - 1) == 0
+        && getPixColorXY(i - 1, HEIGHT - 1) == 0)
+      leds[getPixelNumber(i, HEIGHT - 1)] = CHSV(random(0, 200), SATURATION, 255);
+  }
+
+  // сдвигаем по диагонали
+  for (byte y = 0; y < HEIGHT - 1; y++) {
+    for (byte x = WIDTH - 1; x > 0; x--) {
+      drawPixelXY(x, y, getPixColorXY(x - 1, y + 1));
+    }
+  }
+
+  // уменьшаем яркость левой и верхней линии, формируем "хвосты"
+  for (byte i = HEIGHT / 2; i < HEIGHT; i++) {
+    fadePixel(0, i, TAIL_STEP);
+  }
+  for (byte i = 0; i < WIDTH / 2; i++) {
+    fadePixel(i, HEIGHT - 1, TAIL_STEP);
+  }
+}
+
+
+
+CRGBPalette16 pacifica_palette_1 = 
+    { 0x000507, 0x000409, 0x00030B, 0x00030D, 0x000210, 0x000212, 0x000114, 0x000117, 
+      0x000019, 0x00001C, 0x000026, 0x000031, 0x00003B, 0x000046, 0x14554B, 0x28AA50 };
+CRGBPalette16 pacifica_palette_2 = 
+    { 0x000507, 0x000409, 0x00030B, 0x00030D, 0x000210, 0x000212, 0x000114, 0x000117, 
+      0x000019, 0x00001C, 0x000026, 0x000031, 0x00003B, 0x000046, 0x0C5F52, 0x19BE5F };
+CRGBPalette16 pacifica_palette_3 = 
+    { 0x000208, 0x00030E, 0x000514, 0x00061A, 0x000820, 0x000927, 0x000B2D, 0x000C33, 
+      0x000E39, 0x001040, 0x001450, 0x001860, 0x001C70, 0x002080, 0x1040BF, 0x2060FF };
+
+
+void pacifica_loop()
+{
+  // Increment the four "color index start" counters, one for each wave layer.
+  // Each is incremented at a different speed, and the speeds vary over time.
+  static uint16_t sCIStart1, sCIStart2, sCIStart3, sCIStart4;
+  static uint32_t sLastms = 0;
+  uint32_t ms = GET_MILLIS();
+  uint32_t deltams = ms - sLastms;
+  sLastms = ms;
+  uint16_t speedfactor1 = beatsin16(3, 179, 269);
+  uint16_t speedfactor2 = beatsin16(4, 179, 269);
+  uint32_t deltams1 = (deltams * speedfactor1) / 256;
+  uint32_t deltams2 = (deltams * speedfactor2) / 256;
+  uint32_t deltams21 = (deltams1 + deltams2) / 2;
+  sCIStart1 += (deltams1 * beatsin88(1011,10,13));
+  sCIStart2 -= (deltams21 * beatsin88(777,8,11));
+  sCIStart3 -= (deltams1 * beatsin88(501,5,7));
+  sCIStart4 -= (deltams2 * beatsin88(257,4,6));
+
+  // Clear out the LED array to a dim background blue-green
+  fill_solid( leds, NUM_LEDS, CRGB( 2, 6, 10));
+
+  // Render each of four layers, with different scales and speeds, that vary over time
+  pacifica_one_layer( pacifica_palette_1, sCIStart1, beatsin16( 3, 11 * 256, 14 * 256), beatsin8( 10, 70, 130), 0-beat16( 301) );
+  pacifica_one_layer( pacifica_palette_2, sCIStart2, beatsin16( 4,  6 * 256,  9 * 256), beatsin8( 17, 40,  80), beat16( 401) );
+  pacifica_one_layer( pacifica_palette_3, sCIStart3, 6 * 256, beatsin8( 9, 10,38), 0-beat16(503));
+  pacifica_one_layer( pacifica_palette_3, sCIStart4, 5 * 256, beatsin8( 8, 10,28), beat16(601));
+
+  // Add brighter 'whitecaps' where the waves lines up more
+  pacifica_add_whitecaps();
+
+  // Deepen the blues and greens a bit
+  pacifica_deepen_colors();
+}
+
+// Add one layer of waves into the led array
+void pacifica_one_layer( CRGBPalette16& p, uint16_t cistart, uint16_t wavescale, uint8_t bri, uint16_t ioff)
+{
+  uint16_t ci = cistart;
+  uint16_t waveangle = ioff;
+  uint16_t wavescale_half = (wavescale / 2) + 20;
+  for( uint16_t i = 0; i < NUM_LEDS; i++) {
+    waveangle += 250;
+    uint16_t s16 = sin16( waveangle ) + 32768;
+    uint16_t cs = scale16( s16 , wavescale_half ) + wavescale_half;
+    ci += cs;
+    uint16_t sindex16 = sin16( ci) + 32768;
+    uint8_t sindex8 = scale16( sindex16, 240);
+    CRGB c = ColorFromPalette( p, sindex8, bri, LINEARBLEND);
+    leds[i] += c;
+  }
+}
+
+// Add extra 'white' to areas where the four layers of light have lined up brightly
+void pacifica_add_whitecaps()
+{
+  uint8_t basethreshold = beatsin8( 9, 55, 65);
+  uint8_t wave = beat8( 7 );
+  
+  for( uint16_t i = 0; i < NUM_LEDS; i++) {
+    uint8_t threshold = scale8( sin8( wave), 20) + basethreshold;
+    wave += 7;
+    uint8_t l = leds[i].getAverageLight();
+    if( l > threshold) {
+      uint8_t overage = l - threshold;
+      uint8_t overage2 = qadd8( overage, overage);
+      leds[i] += CRGB( overage, overage2, qadd8( overage2, overage2));
+    }
+  }
+}
+
+// Deepen the blues and greens
+void pacifica_deepen_colors()
+{
+  for( uint16_t i = 0; i < NUM_LEDS; i++) {
+    leds[i].blue = scale8( leds[i].blue,  145); 
+    leds[i].green= scale8( leds[i].green, 200); 
+    leds[i] |= CRGB( 2, 5, 7);
+  }
+}
+
+
+
+
+int lightersPos[2][LIGHTERS_AM];
+int8_t lightersSpeed[2][LIGHTERS_AM];
+CHSV lightersColor[LIGHTERS_AM];
+byte loopCounter;
+
+int angle[LIGHTERS_AM];
+int speedV[LIGHTERS_AM];
+int8_t angleSpeed[LIGHTERS_AM];
+
+void lightersRoutine() {
+ randomSeed(millis());
+    for (byte i = 0; i < LIGHTERS_AM; i++) {
+      lightersPos[0][i] = random(0, WIDTH * 10);
+      lightersPos[1][i] = random(0, HEIGHT * 10);
+      lightersSpeed[0][i] = random(-10, 10);
+      lightersSpeed[1][i] = random(-10, 10);
+      lightersColor[i] = CHSV(random(0, 255), 255, 255);
+    }
+  
+  FastLED.clear();
+  if (++loopCounter > 20) loopCounter = 0;
+  for (byte i = 0; i < map(LIGHTERS_AM,0,255,5,150); i++) {
+    if (loopCounter == 0) {     // меняем скорость каждые 255 отрисовок
+      lightersSpeed[0][i] += random(-3, 4);
+      lightersSpeed[1][i] += random(-3, 4);
+      lightersSpeed[0][i] = constrain(lightersSpeed[0][i], -20, 20);
+      lightersSpeed[1][i] = constrain(lightersSpeed[1][i], -20, 20);
+    }
+
+    lightersPos[0][i] += lightersSpeed[0][i];
+    lightersPos[1][i] += lightersSpeed[1][i];
+
+    if (lightersPos[0][i] < 0) lightersPos[0][i] = (WIDTH - 1) * 10;
+    if (lightersPos[0][i] >= WIDTH * 10) lightersPos[0][i] = 0;
+
+    if (lightersPos[1][i] < 0) {
+      lightersPos[1][i] = 0;
+      lightersSpeed[1][i] = -lightersSpeed[1][i];
+    }
+    if (lightersPos[1][i] >= (HEIGHT - 1) * 10) {
+      lightersPos[1][i] = (HEIGHT - 1) * 10;
+      lightersSpeed[1][i] = -lightersSpeed[1][i];
+    }
+    drawPixelXY(lightersPos[0][i] / 10, lightersPos[1][i] / 10, lightersColor[i]);
+  }
+}
+
+
+#define MIN_DAWN_BRIGHT   2        // Минимальное значение яркости будильника (с чего начинается)
+#define MAX_DAWN_BRIGHT   255      // Максимальное значение яркости будильника (чем заканчивается)
+byte DAWN_NINUTES = 20;  
+void dawnLampSpiral() {
+  
+  if (loadingFlag) {
+    row = 0, col = 0;
+    
+    dawnBrightness = MIN_DAWN_BRIGHT; 
+    tailBrightnessStep = 16;
+    firstRowFlag = true;
+    dawnColorIdx = 0;
+    dawnColorPrevIdx = 0;
+    
+    tailColor = CHSV(0, 0, 255 - 8 * tailBrightnessStep); 
+  }
+
+  boolean flag = true;
+  int8_t x=col, y=row;
+  
+  if (!firstRowFlag) fillAll(tailColor);
+  
+  byte tail_len = min(8, WIDTH - 1);  
+  for (byte i=0; i<tail_len; i++) {
+    x--;
+    if (x < 0) { x = WIDTH - 1; y--; }
+    if (y < 0) {
+      y = HEIGHT - 1;
+      flag = false;
+      if (firstRowFlag) break;
+    }
+
+    byte idx = y > row ? dawnColorPrevIdx : dawnColorIdx;
+    byte dawnHue = pgm_read_byte(&(dawnColorHue[idx]));
+    byte dawnSat = pgm_read_byte(&(dawnColorSat[idx]));
+        
+    tailColor = CHSV(dawnHue, dawnSat, 255 - i * tailBrightnessStep); 
+    drawPixelXY(x,y, tailColor);  
+  }
+  
+  if (flag) {
+    firstRowFlag = false;
+    dawnColorPrevIdx = dawnColorIdx;
+  }
+  if (dawnBrightness == 255 && tailBrightnessStep > 8) tailBrightnessStep -= 2;
+  
+  col++;
+  if (col >= WIDTH) {
+    col = 0; row++;
+  }
+  
+  if (row >= HEIGHT) row = 0;  
+
+  if (col == 0 && row == 0) {
+    // Кол-во элементов массива - 16; Шагов яркости - 255; Изменение индекса каждые 16 шагов яркости. 
+    dawnColorIdx = dawnBrightness >> 4;  
+  }
+}
 
 
 void ledoff(){ 
@@ -15,31 +352,31 @@ void ledoff(){
   void pisca(){ 
          fill_solid( leds, NUM_LEDS, CRGB::Red);
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::Green);
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::Blue);
          FastLED.show();
-         delay(10);
+         delay(50);
         fill_solid( leds, NUM_LEDS, CRGB::Salmon);
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::Yellow);
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::HotPink);
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::Violet);
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::FairyLight );
          FastLED.show();
-         delay(10);
+         delay(50);
          fill_solid( leds, NUM_LEDS, CRGB::Cyan);
          FastLED.show();
-         delay(10);
+         delay(50);
          
   }
     void piscalento(){ 
@@ -91,13 +428,14 @@ void ledoff(){
   void red(){ 
   fill_solid( leds, NUM_LEDS, CRGB::Red);
   }
-  void green(){ 
-  fill_solid( leds, NUM_LEDS, CRGB::Green);
-   FastLED.show();
-  }
+
   void blue(){ 
   fill_solid( leds, NUM_LEDS, CRGB::Blue);
   }
+void amarelo(){ 
+  fill_solid( leds, NUM_LEDS, CRGB::Yellow);
+  }
+  
 void ledon(){ 
   fill_solid( leds, NUM_LEDS, CRGB::White);
   }
@@ -198,19 +536,6 @@ const unsigned char hueMask[8][16] PROGMEM = {
 };
 
 
-void fadePixel(byte i, byte j, byte step) {     // новый фейдер
-  int pixelNum = getPixelNumber(i, j);
-  if (getPixColor(pixelNum) == 0) return;
-
-  if (leds[pixelNum].r >= 30 ||
-      leds[pixelNum].g >= 30 ||
-      leds[pixelNum].b >= 30) {
-    leds[pixelNum].fadeToBlackBy(step);
-  } else {
-    leds[pixelNum] = 0;
-  }
-}
-
 void generateLine() {
   for (uint8_t x = 0; x < WIDTH; x++) {
     line[x] = random(64, 255);
@@ -223,7 +548,7 @@ void shiftUp() {
   for (uint8_t y = HEIGHT - 1; y > 0; y--) {
     for (uint8_t x = 0; x < WIDTH; x++) {
       uint8_t newX = x;
-      if (x > 15) newX = x - 15;
+      if (x > 15) newX = x%16;
       if (y > 7) continue;
       matrixValue[y][newX] = matrixValue[y - 1][newX];
     }
@@ -231,13 +556,45 @@ void shiftUp() {
 
   for (uint8_t x = 0; x < WIDTH; x++) {
     uint8_t newX = x;
-    if (x > 15) newX = x - 15;
+    if (x > 15) newX = x%16;
     matrixValue[0][newX] = line[newX];
   }
 }
 
 // draw a frame, interpolating between 2 "key frames"
 // @param pcnt percentage of interpolation
+
+
+// залить все
+void fillAll(CRGB color) {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i] = color;
+  }
+}
+
+// функция отрисовки точки по координатам X Y
+void drawPixelXY(int8_t x, int8_t y, CRGB color) {
+  if (x < 0 || x > WIDTH - 1 || y < 0 || y > HEIGHT - 1) return;
+  int thisPixel = getPixelNumber(x, y) * SEGMENTS;
+  for (byte i = 0; i < SEGMENTS; i++) {
+    leds[thisPixel + i] = color;
+  }
+}
+
+// функция получения цвета пикселя по его номеру
+uint32_t getPixColor(int thisSegm) {
+  int thisPixel = thisSegm * SEGMENTS;
+  if (thisPixel < 0 || thisPixel > NUM_LEDS - 1) return 0;
+  return (((uint32_t)leds[thisPixel].r << 16) | ((long)leds[thisPixel].g << 8 ) | (long)leds[thisPixel].b);
+}
+
+// функция получения цвета пикселя в матрице по его координатам
+uint32_t getPixColorXY(int8_t x, int8_t y) {
+  return getPixColor(getPixelNumber(x, y));
+}
+
+
+
 uint16_t getPixelNumber(int8_t x, int8_t y) {
   if ((THIS_Y % 2 == 0) || MATRIX_TYPE) {               // если чётная строка
     return (THIS_Y * _WIDTH + THIS_X);
@@ -346,14 +703,7 @@ static uint32_t expandColor(uint16_t color) {
          ((uint32_t)pgm_read_byte(&gamma6[(color >> 5) & 0x3F]) <<  8) |
          pgm_read_byte(&gamma5[ color       & 0x1F]);
 }
-// функция отрисовки точки по координатам X Y
-void drawPixelXY(int8_t x, int8_t y, CRGB color) {
-  if (x < 0 || x > WIDTH - 1 || y < 0 || y > HEIGHT - 1) return;
-  int thisPixel = getPixelNumber(x, y) * SEGMENTS;
-  for (byte i = 0; i < SEGMENTS; i++) {
-    leds[thisPixel + i] = color;
-  }
-}
+
 
 
 void drawFrame(int pcnt) {
@@ -363,7 +713,7 @@ void drawFrame(int pcnt) {
   for (unsigned char y = HEIGHT - 1; y > 0; y--) {
     for (unsigned char x = 0; x < WIDTH; x++) {
       uint8_t newX = x;
-      if (x > 15) newX = x - 15;
+      if (x > 15) newX = x%16;
       if (y < 8) {
         nextv =
           (((100.0 - pcnt) * matrixValue[y][newX]
@@ -394,41 +744,24 @@ void drawFrame(int pcnt) {
   //first row interpolates with the "next" line
   for (unsigned char x = 0; x < WIDTH; x++) {
     uint8_t newX = x;
-    if (x > 15) newX = x - 15;
+    if (x > 15) newX = x%16;
     CRGB color = CHSV(
                    HUE_ADD + pgm_read_byte(&(hueMask[0][newX])), // H
                    255,           // S
                    (uint8_t)(((100.0 - pcnt) * matrixValue[0][newX] + pcnt * line[newX]) / 100.0) // V
                  );
-    leds[getPixelNumber(newX, 0)] = color;
-  }
-}
-
-
-
-// функция получения цвета пикселя по его номеру
-uint32_t getPixColor(int thisSegm) {
-  int thisPixel = thisSegm * SEGMENTS;
-  if (thisPixel < 0 || thisPixel > NUM_LEDS - 1) return 0;
-  return (((uint32_t)leds[thisPixel].r << 16) | ((long)leds[thisPixel].g << 8 ) | (long)leds[thisPixel].b);
-}
-
-// функция получения цвета пикселя в матрице по его координатам
-uint32_t getPixColorXY(int8_t x, int8_t y) {
-  return getPixColor(getPixelNumber(x, y));
-}
-
-// *********** смена цвета активных светодиодов (рисунка) ***********
-byte hue;
-void colorsRoutine() {
-  hue += 4;
-  for (int i = 0; i < NUM_LEDS; i++) {
-    if (getPixColor(i) > 0) leds[i] = CHSV(hue, 255, 255);
+    //leds[getPixelNumber(newX, 0)] = color; // На форуме пишут что это ошибка - вместо newX должно быть x, иначе
+    leds[getPixelNumber(x, 0)] = color;      // на матрицах шире 16 столбцов нижний правый угол неработает
   }
 }
 
 // *********** снегопад 2.0 ***********
 void snowRoutine() {
+  if (loadingFlag) {
+
+    loadingFlag = false;
+    FastLED.clear();  // очистить
+  }
 
   // сдвигаем всё вниз
   for (byte x = 0; x < WIDTH; x++) {
@@ -447,6 +780,48 @@ void snowRoutine() {
   }
 }
 
+// ***************************** БЛУДНЫЙ КУБИК *****************************
+int coordB[2];
+int8_t vectorB[2];
+CRGB ballColor;
+
+void ballRoutine() {
+  if (loadingFlag) {
+    for (byte i = 0; i < 2; i++) {
+      coordB[i] = WIDTH / 2 * 10;
+      vectorB[i] = random(8, 20);
+      ballColor = CHSV(random(0, 9) * 28, 255, 255);
+    }
+  
+    loadingFlag = false;
+  }
+  for (byte i = 0; i < 2; i++) {
+    coordB[i] += vectorB[i];
+    if (coordB[i] < 0) {
+      coordB[i] = 0;
+      vectorB[i] = -vectorB[i];
+      if (RANDOM_COLOR) ballColor = CHSV(random(0, 9) * 28, 255, 255);
+      //vectorB[i] += random(0, 6) - 3;
+    }
+  }
+  if (coordB[0] > (WIDTH - BALL_SIZE) * 10) {
+    coordB[0] = (WIDTH - BALL_SIZE) * 10;
+    vectorB[0] = -vectorB[0];
+    if (RANDOM_COLOR) ballColor = CHSV(random(0, 9) * 28, 255, 255);
+    //vectorB[0] += random(0, 6) - 3;
+  }
+  if (coordB[1] > (HEIGHT - BALL_SIZE) * 10) {
+    coordB[1] = (HEIGHT - BALL_SIZE) * 10;
+    vectorB[1] = -vectorB[1];
+    if (RANDOM_COLOR) ballColor = CHSV(random(0, 9) * 28, 255, 255);
+    //vectorB[1] += random(0, 6) - 3;
+  }
+  FastLED.clear();
+  for (byte i = 0; i < BALL_SIZE; i++)
+    for (byte j = 0; j < BALL_SIZE; j++)
+      leds[getPixelNumber(coordB[0] / 10 + i, coordB[1] / 10 + j)] = ballColor;
+}
+
 void rainbowRoutine() {
 
   hue += 3;
@@ -458,18 +833,19 @@ void rainbowRoutine() {
 }
 
 void fireRoutine() {
-
+  if (loadingFlag) {
+    loadingFlag = false;
     FastLED.clear();
     generateLine();
     memset(matrixValue, 0, sizeof(matrixValue));
-  
+  }
   if (pcnt >= 100) {
     shiftUp();
     generateLine();
     pcnt = 0;
   }
   drawFrame(pcnt);
-  pcnt += 70;
+  pcnt += 30;
 }
 
 
@@ -477,10 +853,9 @@ void fireRoutine() {
 
 // **************** МАТРИЦА *****************
 void matrixRoutine() {
-  if (loadingFlag) {
-    loadingFlag = false;
-    FastLED.clear();
-  }
+
+   // FastLED.clear();
+  
   for (byte x = 0; x < WIDTH; x++) {
     // заполняем случайно верхнюю строку
     uint32_t thisColor = getPixColorXY(x, HEIGHT - 1);
@@ -509,7 +884,7 @@ void matrixRoutine() {
 // ******************* НАСТРОЙКИ *****************
 
 #define MADNESS_SCALE 100
-#define CLOUD_SCALE 30
+#define CLOUD_SCALE 10
 #define LAVA_SCALE 50
 #define PLASMA_SCALE 30
 #define RAINBOW_SCALE 30
@@ -693,7 +1068,7 @@ uint8_t dir_mx, seg_num, seg_size, seg_offset;
 
 void lightBallsRoutine() {
  
-    FastLED.clear();  // очистить
+    //FastLED.clear();  // очистить
     dir_mx = WIDTH > HEIGHT ? 0 : 1;                                 // 0 - квадратные сегменты расположены горизонтально, 1 - вертикально
     seg_num = dir_mx == 0 ? (WIDTH / HEIGHT) : (HEIGHT / WIDTH);     // вычисляем количество сегментов, умещающихся на матрице
     seg_size = dir_mx == 0 ? HEIGHT : WIDTH;                         // Размер квадратного сегмента (высота и ширина равны)
@@ -772,15 +1147,14 @@ void lightBallsRoutine() {
 // ------------- ВОДОВОРОТ -------------
 
 void swirlRoutine() {
-  if (loadingFlag) {
-    loadingFlag = false;
-    FastLED.clear();  // очистить
+
+  //  FastLED.clear();  // очистить
     dir_mx = WIDTH > HEIGHT ? 0 : 1;                                 // 0 - квадратные сегменты расположены горизонтально, 1 - вертикально
     seg_num = dir_mx == 0 ? (WIDTH / HEIGHT) : (HEIGHT / WIDTH);     // вычисляем количество сегментов, умещающихся на матрице
     seg_size = dir_mx == 0 ? HEIGHT : WIDTH;                         // Размер квадратного сегмента (высота и ширина равны)
     seg_offset = ((dir_mx == 0 ? WIDTH : HEIGHT) - seg_size * seg_num) / (seg_num + 1); // смещение от края матрицы и между сегментами    
     BorderWidth = seg_num == 1 ? 0 : 1;
-  }
+
 
   // Apply some blurring to whatever's already on the matrix
   // Note that we never actually clear the matrix, we just constantly
@@ -864,39 +1238,585 @@ void swirlRoutine() {
   }
 }
 
-void Fire2012WithPalette()
+
+
+
+
+
+// Capture Photo and Save it to SPIFFS
+void capturePhotoSaveSpiffs( void ) {
+  camera_fb_t * fb = NULL; // pointer
+  bool ok = 0; // Boolean indicating if the picture has been taken correctly
+
+  do {
+    // Take a photo with the camera
+    Serial.println("Taking a photo...");
+
+    fb = esp_camera_fb_get();
+    if (!fb) {
+      Serial.println("Camera capture failed");
+      return;
+    }
+
+    // Photo file name
+    Serial.printf("Picture file name: %s\n", FILE_PHOTO);
+    File file = SPIFFS.open(FILE_PHOTO, FILE_WRITE);
+
+    // Insert the data in the photo file
+    if (!file) {
+      Serial.println("Failed to open file in writing mode");
+    }
+    else {
+      file.write(fb->buf, fb->len); // payload (image), payload length
+      Serial.print("The picture has been saved in ");
+      Serial.print(FILE_PHOTO);
+      Serial.print(" - Size: ");
+      Serial.print(file.size());
+      Serial.println(" bytes");
+    }
+    // Close the file
+    file.close();
+    esp_camera_fb_return(fb);
+
+    // check if file has been correctly saved in SPIFFS
+    ok = checkPhoto(SPIFFS);
+  } while ( !ok );
+}
+
+
+
+
+
+//################Send foto telegram
+bool isMoreDataAvailable()
 {
-// Array of temperature readings at each simulation cell
-  static uint8_t heat[NUM_LEDS];
+  if (dataAvailable)
+  {
+    dataAvailable = false;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
 
-  // Step 1.  Cool down every cell a little
-    for( int i = 0; i < NUM_LEDS; i++) {
-      heat[i] = qsub8( heat[i],  random8(0, ((COOLING * 10) / NUM_LEDS) + 2));
-    }
-  
-    // Step 2.  Heat from each cell drifts 'up' and diffuses a little
-    for( int k= NUM_LEDS - 1; k >= 2; k--) {
-      heat[k] = (heat[k - 1] + heat[k - 2] + heat[k - 2] ) / 3;
-    }
-    
-    // Step 3.  Randomly ignite new 'sparks' of heat near the bottom
-    if( random8() < SPARKING ) {
-      int y = random8(7);
-      heat[y] = qadd8( heat[y], random8(160,255) );
-    }
+byte *getNextBuffer()
+{
+   camera_fb_t * fb = NULL; 
+      // Take Picture with Camera
+      fb = esp_camera_fb_get();
+  if (fb)
+  {
+    return fb->buf;
+  }
+  else
+  {
+    return nullptr;
+  }
+}
 
-    // Step 4.  Map from heat cells to LED colors
-    for( int j = 0; j < NUM_LEDS; j++) {
-      // Scale the heat value from 0-255 down to 0-240
-      // for best results with color palettes.
-      uint8_t colorindex = scale8( heat[j], 240);
-      CRGB color = ColorFromPalette( currentPalette, colorindex);
-      int pixelnumber;
-      if( gReverseDirection ) {
-        pixelnumber = (NUM_LEDS-1) - j;
-      } else {
-        pixelnumber = j;
+int getNextBufferLen()
+{
+   camera_fb_t * fb = NULL; 
+      // Take Picture with Camera
+      fb = esp_camera_fb_get();
+  if (fb)
+  {
+    return fb->len;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+void  sendPhotoTelegram()
+{
+  int newmsg = bot.getUpdates(bot.last_message_received + 1);
+  Serial.println("Sorria vc esta sendo filmado");
+  Serial.println(String(newmsg));
+
+  for (int i = 0; i < newmsg; i++)
+  {
+    String chat_id = String(bot.messages[i].chat_id);
+    String text = bot.messages[i].text;
+
+    String from_name = bot.messages[i].from_name;
+    if (from_name == "")
+      from_name = "Guest";
+     camera_fb_t * fb = NULL; 
+      // Take Picture with Camera
+      fb = esp_camera_fb_get();
+      if (!fb)
+      {
+        Serial.println("Camera capture failed");
+        bot.sendMessage(chat_id, "Camera capture failed", "");
+        return;
       }
-      leds[pixelnumber] = color;
+      dataAvailable = true;
+      Serial.println("Enviando");
+      bot.sendPhotoByBinary(chat_id, "image/jpeg", fb->len,
+                            isMoreDataAvailable, nullptr,
+                            getNextBuffer, getNextBufferLen);
+
+      Serial.println("done!");
+
+      esp_camera_fb_return(fb);
+    
+
+  
+  
+
+
+}}
+
+
+
+
+
+
+// Sound sensor code
+void readSoundSensor(){
+//valorvibra = analogRead(mic);
+
+
+ if (valorvibra > 5000) {
+clap_counter++;
+ if (clap_counter > 0) { 
+  //takeNewPhoto = true; 
+     if (led_state) {
+      led_state = false;
+      color_counter++;// LED was on, now off
+      if(color_counter > 7){ color_counter = 0;}
+      changeColor();
+      //clap_counter = 0;
+  //    sound_value = 0;
+Serial.println("Clap on");
+Serial.println(color_counter);
+
+delay(300);
+
+      
+   }
+    else {
+         led_state = true;
+        ledoff();
+        ledState = "ledoff";
+
+      Serial.println("Clap off");
+      delay(300);
+    }}
+  delay(300);
+  //      Serial.println("sound");
+  Serial.println(valorvibra);
+
+ // Serial.println(color_counter);
+  Serial.println("||" + clap_counter);
+
+    }}
+
+
+    void changeColor(){
+   
+  //bot.sendMessage(id, "Alguem bateu palmas, acendendo a luz, mudando intensidade, mudando de cor", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+  Serial.println("Luz acionada vibrando");
+
+//muda de cor
+if (color_counter == 0)
+  {
+ ledState = "ledoff";
+  }
+  if (color_counter == 1)
+  {
+   ledState = "green";
+  }
+  if (color_counter == 2)
+  { 
+    ledState = "blue";
+    //     bot.sendMessage(id, "Dimmer", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+
     }
+   if (color_counter == 3)
+  { 
+      ledState = "pisca";
+    }
+   if (color_counter == 4)
+  { 
+      ledState = "tetris";
+    }
+   if (color_counter == 5)
+  { 
+      ledState = "rainbow2";
+    }
+  if (color_counter == 6)
+  { 
+    ledState = "zebra";
+
+    }  
+ if (color_counter == 7)
+  { 
+ ledState = "clock";
+}
+
+  //sendPhotoTelegram();
+
+}
+
+void readTel()//Funçao que faz a leitura do Telegram.
+{  
+   int newmsg = bot.getUpdates(bot.last_message_received + 1);
+//   int msgtxt = bot.getUpdates(bot.last_message_received);
+ //  String msgtele = bot.messages[1].text;
+
+   for (int i = 0; i < newmsg; i++)//Caso haja X mensagens novas, fara este loop X Vezes.
+   {
+      id = bot.messages[i].chat_id;//Armazenara o ID do Usuario à Váriavel.
+      text = bot.messages[i].text;//Armazenara o TEXTO do Usuario à Váriavel.
+      //text.toUpperCase();//Converte a STRING_TEXT inteiramente em Maiuscúla.
+      from_name = bot.messages[i].from_name;
+      //bot.messages[i].type == "channel_post";
+
+  
+      if (text.indexOf("ledon") > -1)//Caso o texto recebido contenha "ON"
+      {
+         ledon();
+         bot.sendMessage(id, "LED ON", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+      else if (text.indexOf("ledoff") > -1)//Caso o texto recebido contenha "OFF"
+      {
+      //  NeoFade(100);
+        ledoff();
+        bot.sendMessage(id, "LED OFF", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+      else if (text.indexOf("clima") > -1)//Caso o texto recebido contenha "START"
+      {
+//          strobe(0, 0, 0xff, 20, 30, 10);
+   ledState = "clima";
+          String msg = "||Hora:"; 
+          msg += msg.concat(timeClient.getFormattedTime());
+          msg += "\n\n";
+          msg += "||Temperatura:";
+          msg += msg.concat(readDHTTemperature());
+          msg += "C";
+          msg += "\n\n";
+          msg += "||Umidade:";
+          msg += msg.concat(readDHTHumidity());
+          msg += "%"; 
+          msg += "\n\n";
+          msg += "||Pressao:";
+          msg += msg.concat(readDHTPressao());
+          msg += " Pa"; 
+          msg += "\n\n";
+          msg += "||CO2:";
+          msg += msg.concat(readCO2());
+          msg += " PPM"; 
+          msg += "\n\n";
+          bot.sendMessage(id, msg, "");
+          addFile(SPIFFS, climaPath, msg.c_str());
+     
+     }
+
+              else if (text.indexOf("btc") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        ledState = "btc";
+         EEPROM.writeString(1, btc());
+        
+        bot.sendMessage(id,btc(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }  
+      //######Comando telegram
+      else if (text.indexOf("clock") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        ledState = "clock";
+        
+        bot.sendMessage(id,timeClient.getFormattedTime(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+            else if (text.indexOf("telegram") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        ledState = "telegram";
+        bot.sendMessage(id, "Monitorando grupo do telegram, envie msg com / para aparecer na luminaria", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+            else if (text.indexOf("foto") > -1)//Caso o texto recebido contenha "OFF"
+      {
+      //  NeoFade(100);
+        sendPhotoTelegram();
+        bot.sendMessage(id, "Take a picture", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+      
+      else if(text.indexOf("start") > -1)//Caso o texto recebido contenha "START"
+      {
+      if (from_name == "")
+      from_name = "Guest";
+
+      welcome = "Bem vindo, " + from_name + ".\n";
+      welcome += "Essa eh a MushLight\n\n";
+      welcome += "/foto : Para tirar foto\n";
+      welcome += "/btc : Mostra o preco do btc \n";
+      welcome += "/ltc : Mostra o preco do ltc \n";
+      welcome += "/vermelho : Para ligar o LED \n";
+      welcome += "/verde : Para ligar o LED verde\n";
+      welcome += "/rainbow : Para ligar o LED \n";
+      welcome += "/clima : Para verificar temperatura, humidade e pressao\n";
+      welcome += "/ledon: Liga o LED \n";
+      welcome += "/ledoff: Para desligar o LED\n";
+      welcome += "/start : Abre esse menu\n";
+      welcome += "codigo fonte em https://github.com/santocyber/MushLight\n";
+
+      bot.sendMessage(id, welcome, "Markdown");      
+      }
+
+      else//Caso o texto recebido nao for nenhum dos acima, Envia uma mensagem de erro.
+      {
+       //  bot.sendSimpleMessage(id, "Comando Invalido", "");
+      }
+   }
+
+}
+
+
+
+
+
+
+void verifica(){
+       takeNewPhoto = true;
+       sendPhotoTelegram();
+      
+       
+       String msg = "||Hora:"; 
+          msg += msg.concat(timeClient.getFormattedTime());
+          msg += "\n\n";
+          msg += "||Temperatura:";
+          msg += msg.concat(readDHTTemperature());
+          msg += "C";
+          msg += "\n\n";
+          msg += "||Umidade:";
+          msg += msg.concat(readDHTHumidity());
+          msg += "%"; 
+          msg += "\n\n";
+          msg += "||Pressao:";
+          msg += msg.concat(readDHTPressao());
+          msg += " Pa"; 
+          msg += "\n\n";
+          msg += "||CO2:";
+          msg += msg.concat(readCO2());
+          msg += " PPM"; 
+          msg += "\n\n";
+          bot.sendMessage(id, msg, "");
+          addFile(SPIFFS, climaPath, msg.c_str());
+          
+}
+
+
+void connect()//Funçao para Conectar ao wifi e verificar à conexao.
+{
+   if (WiFi.status() != WL_CONNECTED)//Caso nao esteja conectado ao WiFi, Ira conectarse
+   {
+    WiFi.begin(ssid.c_str(), pass.c_str());
+    //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    delay(10);
+   }
+}
+
+
+
+
+
+String crono(){
+String segundos;
+cSegundos++;
+segundos = cSegundos / 100;
+return segundos;
+delay(1000);
+
+  
+}
+
+
+
+
+
+String shiba(){
+//const String site = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD&e=Coinbase";
+const String site = "https://www.bitstamp.net/api/v2/ticker/shibusd";
+ 
+if (ledState == "shiba") {
+   
+     http.begin(site);
+     int httpCode = http.GET(); 
+     Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
+    
+        DynamicJsonDocument doc4(2500); 
+       // JsonObject PRICE = doc4["last"].as<JsonObject>();
+        
+         DeserializationError error = deserializeJson(doc4, http.getString());
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+        String SHIBAUSDPrice = doc4["last"].as<String>();
+               SHIBAUSDPrice += ":24h:";
+               SHIBAUSDPrice += doc4["percent_change_24"].as<String>();
+               
+        http.end();
+    
+        Serial.print("SHIBAUSD Price: ");
+ 
+        Serial.println(SHIBAUSDPrice.toDouble());
+  
+        
+        http.end();               
+        return SHIBAUSDPrice;
+        http.end();  
+        delay(5000);                                   
+}}
+
+
+
+
+
+
+
+String ltc(){
+//const String site = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD&e=Coinbase";
+const String site = "https://www.bitstamp.net/api/v2/ticker/ltcusd";
+     http.begin(site);
+     int httpCode = http.GET(); 
+     Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
+    
+        DynamicJsonDocument doc3(2500); 
+       // JsonObject PRICE = doc3["last"].as<JsonObject>();
+        
+         DeserializationError error = deserializeJson(doc3, http.getString());
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+        String LTCUSDPrice = doc3["last"].as<String>();
+               LTCUSDPrice += ":24h:";
+               LTCUSDPrice += doc3["percent_change_24"].as<String>();
+               
+
+        http.end();
+    
+        Serial.print("LTCUSD Price: ");
+ 
+        Serial.println(LTCUSDPrice.toDouble());
+        Serial.println(LTCUSDPrice);
+        
+        http.end();               
+ return LTCUSDPrice;
+        delay(5000);                                   
+}
+
+
+
+
+
+
+
+
+
+
+String eth(){
+//const String site = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD&e=Coinbase";
+const String site = "https://www.bitstamp.net/api/v2/ticker/ethusd";
+ 
+if (ledState == "eth") {
+   
+     http.begin(site);
+     int httpCode = http.GET(); 
+     Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
+    
+        DynamicJsonDocument doc2(2500); 
+       // JsonObject PRICE = doc2["last"].as<JsonObject>();
+        
+         DeserializationError error = deserializeJson(doc2, http.getString());
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+        String ETHUSDPrice = doc2["last"].as<String>();
+               ETHUSDPrice += ":24h:";
+               ETHUSDPrice += doc2["percent_change_24"].as<String>();
+               
+        http.end();
+    
+        Serial.print("ETHUSD Price: ");
+Serial.println(ETHUSDPrice.toDouble());
+  
+        
+        http.end();               
+        return ETHUSDPrice;
+        http.end();  
+        delay(5000);                                   
+}}
+
+
+
+
+
+
+
+String btc(){
+
+const String url = "http://api.coindesk.com/v1/bpi/currentprice/BTC.json";
+
+    
+        http.begin(url);
+        int httpCode = http.GET();                                                                                                                                                                                                                                                //Get crypto price from API
+        StaticJsonDocument<2000> doc;
+        DeserializationError error = deserializeJson(doc, http.getString());
+    
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+    
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+    
+        String BTCUSDPrice = doc["bpi"]["USD"]["rate_float"].as<String>(); 
+         //      BTCUSDPrice += "24hchange:";
+         //      BTCUSDPrice += doc["percent_change_24"].as<String>();
+               
+
+        
+        
+        
+        //Store crypto price and update date in local variables
+        http.end();
+    
+       
+    
+        Serial.print("BTCUSD Price: ");                                                       //Display current price on serial monitor
+        Serial.println(BTCUSDPrice.toDouble());
+
+                                                                                                                                                                                           //Display the current price
+    
+        http.end();               
+        return String(BTCUSDPrice.toDouble());
+        delay(5000);                                   //Sleep for 15 minutes
 }

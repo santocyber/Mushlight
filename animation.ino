@@ -5,7 +5,6 @@
 // Данный пример работает при размере матрицы 16x16 - такие картинки подготовлены в этом файле
 // для других размеров матрицы - подготовьте собственные картинки
 
-timerMinim gifTimer(D_GIF_SPEED);
 
 void loadImage(const uint16_t (*frame)) {
   int8_t offset_x = (WIDTH - FRAME_WIDTH) / 2;
