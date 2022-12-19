@@ -1321,7 +1321,13 @@ uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 if (ledState == "loggrafico") {
 
 
-
+if (millis() - tempo8 > 30000)//Faz a verificaçao das funçoes a cada 30min
+   {
+    
+//verifica2(); 
+      tempo8 = millis();
+     
+   }
 
 }
 
@@ -1740,13 +1746,7 @@ rainbowStripeNoise();
    }
 
 
-if (millis() - tempo8 > 30000)//Faz a verificaçao das funçoes a cada 30min
-   {
-    
-verifica2(); 
-      tempo8 = millis();
-     
-   }
+
 
 //delay(2000);
   

@@ -1745,7 +1745,7 @@ void verifica2(){
           msg += ",";
           msg += " \"CO2\":";          
           msg += msg.concat(readCO2());  
-          msg += "}";  
+          msg += "},";  
           writeFile(SPIFFS, loggerPath, msg.c_str());
           
 }
@@ -1892,16 +1892,23 @@ Serial.println(ETHUSDPrice.toDouble());
 
 
 String getSensorReadings(){
-String  clima2 = readTotal (SPIFFS, loggerPath);
-//String clima2 = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
+String  clima = readTotal (SPIFFS, climaPath);
+//String clima = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
  
 
 DynamicJsonDocument jsonBuffer(2000);
-    deserializeJson(jsonBuffer, clima2);
-      JsonObject obj = jsonBuffer.as<JsonObject>();
+    deserializeJson(jsonBuffer, clima);
+    JsonObject obj = jsonBuffer.as<JsonObject>();
 
    
-  // String sensor = obj["Temperatura"]["Umidade"]["Pressao"]["CO2"].as<String>();
+//  jsonBuffer["Temperatura"]=jsonBuffer["Temperatura"]
+ // jsonBuffer["Umidade"]=jsonBuffer["Umidade"]
+  //jsonBuffer["Pressao"]= jsonBuffer["Pressao"];
+  //jsonBuffer["CO2"]= jsonBuffer["CO2"];
+
+
+
+//jsonBuffer["Temperatura"]["Umidade"]["Pressao"]["CO2"].as<String>();
 
 
 // String myString = String(clima2);
@@ -1919,17 +1926,21 @@ DynamicJsonDocument jsonBuffer(2000);
 //         row += myString.substring(delimiter_2 + 10, delimiter_3);
 //         row += myString.substring(delimiter_3 + 6, delimiter_4);
 
+  jsonBuffer["Temperatura"] = readDHTTemperature();
+  jsonBuffer["Umidade"] = readDHTHumidity();
+  jsonBuffer["Pressao"] = readDHTPressao();
+  jsonBuffer["CO2"] = readCO2();
 
+//String sensor = obj["Temperatura"].as<String>();
+  //        sensor += obj["Umidade"].as<String>();
+    //     sensor += obj["Pressao"].as<String>();
+      //   sensor += obj["CO2"].as<String>();
+ String output; 
+ serializeJson(jsonBuffer, output);
 
-
-String sensor = obj["Temperatura"].as<String>();
-          sensor += obj["Umidade"].as<String>();
-         sensor += obj["Pressao"].as<String>();
-         sensor += obj["CO2"].as<String>();
- 
 
         
- return sensor;
+ return output;
 
 
     

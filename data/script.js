@@ -10,7 +10,7 @@ var chartT = new Highcharts.Chart({
   },
   series: [
     {
-      name: 'Temperatura',
+      name: 'Temperature',
       type: 'line',
       color: '#101D42',
       marker: {
@@ -18,124 +18,37 @@ var chartT = new Highcharts.Chart({
         radius: 3,
         fillColor: '#101D42',
       }
-    }
-  ],
-  title: {
-    text: undefined
-  },
-  xAxis: {
-    type: 'datetime',
-    dateTimeLabelFormats: { second: '%H:%M:%S' }
-  },
-  yAxis: {
-    title: {
-      text: 'TEMPERATURA'
-    }
-  },
-  credits: {
-    enabled: false
-  }
-});
-
-
-
-
-
-
-
-
-
-var chartU = new Highcharts.Chart({
-  chart:{
-    renderTo:'chart-temperature'
-  },
-  series: [
+    },
     {
       name: 'Umidade',
       type: 'line',
-      color: '#101D42',
+      color: '#00A6A6',
       marker: {
-        symbol: 'circle',
+        symbol: 'square',
         radius: 3,
-        fillColor: '#101D42',
+        fillColor: '#00A6A6',
       }
-    }
-  ],
-  title: {
-    text: undefined
-  },
-  xAxis: {
-    type: 'datetime',
-    dateTimeLabelFormats: { second: '%H:%M:%S' }
-  },
-  yAxis: {
-    title: {
-      text: 'UMIDADE %'
-    }
-  },
-  credits: {
-    enabled: false
-  }
-});
-
-
-
-
-
-
-var chartP = new Highcharts.Chart({
-  chart:{
-    renderTo:'chart-temperature'
-  },
-  series: [
+    },
     {
       name: 'Pressao',
       type: 'line',
-      color: '#101D42',
+      color: '#8B2635',
       marker: {
-        symbol: 'circle',
+        symbol: 'triangle',
         radius: 3,
-        fillColor: '#101D42',
+        fillColor: '#8B2635',
       }
-    }
-  ],
-  title: {
-    text: undefined
-  },
-  xAxis: {
-    type: 'datetime',
-    dateTimeLabelFormats: { second: '%H:%M:%S' }
-  },
-  yAxis: {
-    title: {
-      text: 'PRESSAO'
-    }
-  },
-  credits: {
-    enabled: false
-  }
-});
-
-
-
-
-
-
-var chartC = new Highcharts.Chart({
-  chart:{
-    renderTo:'chart-temperature'
-  },
-  series: [
+    },
     {
       name: 'CO2',
       type: 'line',
-      color: '#101D42',
+      color: '#71B48D',
       marker: {
-        symbol: 'circle',
+        symbol: 'triangle-down',
         radius: 3,
-        fillColor: '#101D42',
+        fillColor: '#71B48D',
       }
-    }
+    },
   ],
   title: {
     text: undefined
@@ -146,16 +59,13 @@ var chartC = new Highcharts.Chart({
   },
   yAxis: {
     title: {
-      text: 'CO2 PPM'
+      text: 'Temperature Celsius Degrees'
     }
   },
   credits: {
     enabled: false
   }
 });
-
-
-
 
 
 //Plot temperature in the temperature chart
@@ -172,7 +82,7 @@ function plotTemperature(jsonValue) {
     var y = Number(jsonValue[key]);
     console.log(y);
 
-    if(chartT.series[i].data.length > 4000) {
+    if(chartT.series[i].data.length > 40) {
       chartT.series[i].addPoint([x, y], true, true, true);
     } else {
       chartT.series[i].addPoint([x, y], true, false, true);
