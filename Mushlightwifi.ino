@@ -19,13 +19,18 @@
 #include <FS.h>
 #include "esp_camera.h"
 #include <WiFiClientSecure.h>
-
+#include <time.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "EEPROM.h"
 
 
+//#####Configura data logger
 
+String    webpage,time_now,log_time,lastcall,time_str, DataFile = "datalog.txt";
+#define TZone -3
+
+//####Configura contador
 unsigned long cSegundos = 0;
 unsigned int segundos = 0;
 byte minutos = 0;
@@ -33,12 +38,6 @@ byte minutos = 0;
 
 
 //###########Configura Crypto
-
-//String BTCUSDPrice;
-//String ETHUSDPrice;
-//String LTCUSDPrice;
-//String SHIBAUSDPrice;
-
 
 const int httpsPort = 443;
 
@@ -129,6 +128,9 @@ CRGB leds[NUM_LEDS];
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
+AsyncEventSource events("/events");
+
+
 // Search for parameter in HTTP POST request
 const char* PARAM_INPUT_1 = "ssid";
 const char* PARAM_INPUT_2 = "pass";
@@ -136,6 +138,7 @@ const char* PARAM_INPUT_3 = "ip";
 const char* PARAM_INPUT_4 = "gateway";
 const char* PARAM_INPUT_5 = "tokentelegram";
 const char* PARAM_INPUT_11 = "clima";
+const char* PARAM_INPUT_12 = "logger";
 const char* PARAM_INPUT_6 = "txt";
 const char* PARAM_INPUT_7 = "cor";
 const char* PARAM_INPUT_8 = "text";
@@ -157,6 +160,9 @@ String dimmer = "250";
 //String bot;
 String id, welcome, from_name;//Váriaveis para armazenamento do ID e TEXTO gerado pelo Usuario
 String msg;
+String readings;
+String logger;
+
 
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
@@ -165,6 +171,7 @@ const char* ipPath = "/ip.txt";
 const char* gatewayPath = "/gateway.txt";
 const char* tokentelegramPath = "/tokentelegram.txt";
 const char* climaPath = "/clima.txt";
+const char* loggerPath = "/log.txt";
 
 
 
@@ -200,6 +207,8 @@ unsigned long tempo3 = millis();
 unsigned long tempo4 = millis();
 unsigned long tempo5 = millis();
 unsigned long tempo6 = millis();
+unsigned long tempo7 = millis();
+unsigned long tempo8 = millis();
 
 boolean AUTOPLAY = 1;        
 #define AUTOPLAY_PERIOD 30    
@@ -330,6 +339,27 @@ void initSPIFFS() {
 }
 
 
+
+// Read  TOTAL File from SPIFFS
+String readTotal(fs::FS &fs, const char * path){
+  Serial.printf("Reading file: %s\r\n", path);
+
+  File file = fs.open(path);
+  if(!file || file.isDirectory()){
+    Serial.println("- failed to open file for reading");
+    return String();
+  }
+  
+  String fileContent;
+  while(file.available()){
+    fileContent = file.readStringUntil('}');
+    break;     
+  }
+  return fileContent;
+}
+
+
+
 // Read File from SPIFFS
 String readFile(fs::FS &fs, const char * path){
   Serial.printf("Reading file: %s\r\n", path);
@@ -375,7 +405,7 @@ void addFile(fs::FS &fs, const char * path, const char * message){
     return;
   }
   if(file.print(message)){
-    Serial.println("- file written");
+    Serial.println("- file adicionado");
   } else {
     Serial.println("- frite failed");
   }
@@ -431,7 +461,10 @@ bool initWiFi() {
     timeClient.update();
     readTel();
     verifica();
- 
+    verifica2();
+    StartTime();
+
+
   
   Serial.println("Connecting to WiFi...");
 
@@ -450,7 +483,6 @@ bool initWiFi() {
   Serial.println(WiFi.localIP());
   return true;
 }
-
 
 
  String readCO2() {
@@ -500,7 +532,7 @@ String readDHTPressao() {
     return "--";
   }
   else {
-    Serial.println(p);
+  //  Serial.println(p);
     return String(p);
   }
 }
@@ -574,6 +606,7 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
   gateway = readFile (SPIFFS, gatewayPath);
   tokentelegram = readFile (SPIFFS, tokentelegramPath);
   clima = readFile (SPIFFS, climaPath);
+  logger = readFile (SPIFFS, loggerPath);
 
   Serial.println(ssid);
   Serial.println(pass);
@@ -581,6 +614,8 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
   Serial.println(gateway);
   Serial.println(tokentelegram);
   Serial.println(clima);
+  Serial.println(logger);
+
 
 client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 
@@ -604,6 +639,16 @@ client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.tel
       for(int i=0;i<params;i++){
         AsyncWebParameter* p = request->getParam(i);
         if(p->isPost()){
+
+          // HTTP POST ssid value
+          if (p->name() == PARAM_INPUT_11) {
+            clima = p->value().c_str();
+            Serial.print("txt set to: ");
+            Serial.println(clima);
+            // Write file to save value
+            // request->send(200, "text/html", "<a href='../runningtext' Executar</a><br><br>Mensagem enviada:" + txt );
+          
+          }
           // HTTP POST ssid value
           if (p->name() == PARAM_INPUT_6) {
             txt = p->value().c_str();
@@ -674,7 +719,41 @@ FastLED.delay(2000 / velovar);
     // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "log";
-      request->send(SPIFFS, "/clima.txt", "text/html", false);
+      verifica();
+      request->send(SPIFFS, "/clima.txt", "text/html", false, processor);
+    });
+      // Route to set GPIO state to HIGH
+    server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
+      ledState = "loggrafico";
+      
+ 
+        request->send(SPIFFS, "/log.html", "text/html", false);
+ //     request->send(SPIFFS, "/clima.txt", "text/json", false, processor);
+//        request->send_P(200, "text/plain", getSensorReadings().c_str());
+
+//   String json = getSensorReadings();
+  //  request->send(200, "application/json", json);
+
+    });
+
+  // Request for the latest sensor readings
+  server.on("/readings", HTTP_GET, [](AsyncWebServerRequest *request){
+    String json = getSensorReadings();
+    request->send(200, "application/json", json);
+    request->send_P(200, "text/plain", getSensorReadings().c_str());
+
+    json = String();
+  });
+
+    
+
+        // Route to set GPIO state to HIGH
+    server.on("/deletelog", HTTP_GET, [](AsyncWebServerRequest *request) {
+      ledState = "deletelog";
+      writeFile(SPIFFS, climaPath, "");
+      writeFile(SPIFFS, loggerPath, "");
+
+      request->send(SPIFFS, "/index.html", "text/html", false);
     });
 
     
@@ -787,9 +866,33 @@ FastLED.delay(2000 / velovar);
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
         // Route to set GPIO state to HIGH
-    server.on("/fox", HTTP_GET, [](AsyncWebServerRequest *request) {
-     // Fire2012WithPalette();   
-      ledState = "fox";
+    server.on("/light", HTTP_GET, [](AsyncWebServerRequest *request) {  
+      ledState = "light";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });     
+    // Route to set GPIO state to HIGH
+    server.on("/bpm", HTTP_GET, [](AsyncWebServerRequest *request) {   
+      ledState = "bpm";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+        // Route to set GPIO state to HIGH
+    server.on("/sinelon", HTTP_GET, [](AsyncWebServerRequest *request) {   
+      ledState = "sinelon";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+        // Route to set GPIO state to HIGH
+    server.on("/confetti", HTTP_GET, [](AsyncWebServerRequest *request) {   
+      ledState = "confetti";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+        // Route to set GPIO state to HIGH
+    server.on("/rainbowgliter", HTTP_GET, [](AsyncWebServerRequest *request) {   
+      ledState = "rainbowgliter";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+            // Route to set GPIO state to HIGH
+    server.on("/juggle", HTTP_GET, [](AsyncWebServerRequest *request) {   
+      ledState = "juggle";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
@@ -842,12 +945,25 @@ FastLED.delay(2000 / velovar);
           ledState = "snowon";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
-
             // Route to set GPIO state to HIGH
     server.on("/clock", HTTP_GET, [](AsyncWebServerRequest *request) {
   timeClient.update();
    fillString(timeClient.getFormattedTime(), 1);
           ledState = "clock";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+                // Route to set GPIO state to HIGH
+    server.on("/dia", HTTP_GET, [](AsyncWebServerRequest *request) {
+  timeClient.update();
+   fillString(timeClient.getFormattedTime(), 1);
+          ledState = "dia";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+                // Route to set GPIO state to HIGH
+    server.on("/data", HTTP_GET, [](AsyncWebServerRequest *request) {
+  timeClient.update();
+   fillString(timeClient.getFormattedTime(), 1);
+          ledState = "data";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
@@ -1067,8 +1183,25 @@ FastLED.delay(2000 / velovar);
     request->send(SPIFFS, FILE_PHOTO, "image/jpg", false);
   });
 
-
+    configureEvents();
     server.begin();
+    //uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
+//uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
+//FastLED.setBrightness(dimmervar);
+//FastLED.delay(2000 / velovar);
+//scrollTimer.setInterval(velovar);
+
+uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
+uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
+uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
+if (millis() - tempo7 > 1000)//Faz a verificaçao das funçoes a cada 2 Segundos
+    {
+FastLED.setBrightness(dimmervar);
+FastLED.delay(2000 / velovar);
+      tempo7 = millis();//Reseta o tempo
+     
+   }
+
    
   
   }
@@ -1156,12 +1289,8 @@ FastLED.delay(2000 / velovar);
 
 void loop() {
 
-//uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
 uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
-//uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
-//FastLED.setBrightness(dimmervar);
-//FastLED.delay(2000 / velovar);
-//scrollTimer.setInterval(velovar);
+
 
 
 
@@ -1188,7 +1317,13 @@ uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
       tempo3 = millis();
      
    }
-  
+
+if (ledState == "loggrafico") {
+
+
+
+
+}
 
 if (ledState == "ledoff") {
 
@@ -1267,9 +1402,9 @@ if (ledState == "ledon") {
 
           if (ledState == "snowon") {
             snowRoutine();
-            //FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
             FastLED.show(); // display this frame
-            //FastLED.setBrightness(dimmervar);
+            
     }
     
               if (ledState == "temp") {
@@ -1307,6 +1442,22 @@ if (ledState == "ledon") {
     FastLED.show(); // display this frame
     //FastLED.setBrightness(dimmervar);
     }
+        if (ledState == "dia") {
+
+ 
+    fillString(timeClient.getFormattedTime(), corvar);
+    FastLED.show(); // display this frame
+    //FastLED.setBrightness(dimmervar);
+    }
+        if (ledState == "data") {
+time_t now = time(nullptr);
+ time_now = String(ctime(&now)).substring(0,24);
+    fillString(time_now, corvar);
+    FastLED.show(); // display this frame
+    //FastLED.setBrightness(dimmervar);
+    }
+ 
+ 
 
    if (ledState == "zebra") {
     //    uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
@@ -1524,8 +1675,38 @@ rainbowStripeNoise();
 
     }
     
-        if (ledState == "fox") {
+        if (ledState == "light") {
  lightersRoutine();
+  FastLED.show(); // display this frame
+   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
+ //FastLED.delay(2000 / veloframe);
+   }
+           if (ledState == "bpm") {
+ bpm();
+  FastLED.show(); // display this frame
+   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
+ //FastLED.delay(2000 / veloframe);
+   }
+   if (ledState == "sinelon") {
+ sinelon();
+  FastLED.show(); // display this frame
+   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
+ //FastLED.delay(2000 / veloframe);
+   }
+   if (ledState == "confetti") {
+ confetti();
+  FastLED.show(); // display this frame
+   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
+ //FastLED.delay(2000 / veloframe);
+   }
+      if (ledState == "juggle") {
+ juggle();
+  FastLED.show(); // display this frame
+   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
+ //FastLED.delay(2000 / veloframe);
+   }
+   if (ledState == "rainbowgliter") {
+ rainbowWithGlitter();
   FastLED.show(); // display this frame
    //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
  //FastLED.delay(2000 / veloframe);
@@ -1548,24 +1729,24 @@ rainbowStripeNoise();
  //##Loop paralelo
     if (millis() - tempo6 > 2000)//Faz a verificaçao das funçoes a cada 30min
    {
-
-
-Serial.println(EEPROM.readString(1));
-Serial.println(EEPROM.readString(2));
-Serial.println(EEPROM.readString(3));
-Serial.println(EEPROM.readString(4));
-Serial.println(EEPROM.readString(9));
-Serial.println(tokentelegram.c_str());
-Serial.println(TOKEN);
-Serial.println(strtoul(velocidade.c_str(), NULL, 16));
-Serial.println(dimmer.c_str());
-Serial.println(cor.c_str());
-Serial.println(msg);
-//Serial.println(veloframe);
+    
+ events.send("ping",NULL,millis());
+ events.send(getSensorReadings().c_str(),"new_readings" ,millis());
+   Serial.print(getSensorReadings().c_str());
+    
+      
       tempo6 = millis();
      
    }
 
+
+if (millis() - tempo8 > 30000)//Faz a verificaçao das funçoes a cada 30min
+   {
+    
+verifica2(); 
+      tempo8 = millis();
+     
+   }
 
 //delay(2000);
   

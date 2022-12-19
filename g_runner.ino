@@ -10,8 +10,8 @@
 #define OBST_HEIGHT 4     // макс. высота препятствия
 #define OBST_PROB 10      // шанс появления препятствия
 #define DEMO_JUMP 6       // за какое расстояние делать прыжок в демо режиме
+boolean gamemodeFlag = true;
 
-#if (USE_RUNNER == 1)
 timerMinim runnerTimer(DT);
 timerMinim obstTimer(OBST_SPEED);
 
@@ -26,7 +26,6 @@ void runnerRoutine() {
     FastLED.clear();
     loadingFlag = false;
     gamemodeFlag = true;
-    modeCode = MC_GAME;
   }
 
   if (gameDemo) {
@@ -82,9 +81,3 @@ void runnerRoutine() {
     FastLED.show();
   }
 }
-
-#else
-void runnerRoutine() {
-  return;
-}
-#endif

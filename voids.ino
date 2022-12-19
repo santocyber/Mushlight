@@ -1,3 +1,20 @@
+    void StartTime(){
+  // Note: The ESP8266 Time Zone does not function e.g. ,0,"time.nist.gov"
+  configTime(TZone * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  // Change this line to suit your time zone, e.g. USA EST configTime(-5 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  // Change this line to suit your time zone, e.g. AUS configTime(8 * 3600, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.println(F("\nWaiting for time"));
+  while (!time(nullptr)) {
+    delay(500);
+  }
+  Serial.println("Time set");
+
+    }
+
+
+
+
+
 // **************** НАСТРОЙКИ ЭФФЕКТОВ ****************
 // эффект "шарики"
 #define BALLS_AMOUNT 1    // количество "шариков"
@@ -137,8 +154,6 @@ void starfallRoutine() {
   }
 }
 
-
-
 CRGBPalette16 pacifica_palette_1 = 
     { 0x000507, 0x000409, 0x00030B, 0x00030D, 0x000210, 0x000212, 0x000114, 0x000117, 
       0x000019, 0x00001C, 0x000026, 0x000031, 0x00003B, 0x000046, 0x14554B, 0x28AA50 };
@@ -230,6 +245,99 @@ void pacifica_deepen_colors()
     leds[i] |= CRGB( 2, 5, 7);
   }
 }
+
+
+
+
+
+// List of patterns to cycle through.  Each is defined as a separate function below.
+typedef void (*SimplePatternList[])();
+SimplePatternList gPatterns = { rainbow, rainbowWithGlitter, confetti, sinelon, juggle, bpm };
+
+uint8_t gCurrentPatternNumber = 0; // Index number of which pattern is current
+uint8_t gHue = 0; // rotating "base color" used by many of the patterns
+  
+void demo()
+{
+  // Call the current pattern function once, updating the 'leds' array
+  gPatterns[gCurrentPatternNumber]();
+
+  // send the 'leds' array out to the actual LED strip
+  FastLED.show();  
+  // insert a delay to keep the framerate modest
+//  FastLED.delay(1000/FRAMES_PER_SECOND); 
+
+  // do some periodic updates
+  EVERY_N_MILLISECONDS( 20 ) { gHue++; } // slowly cycle the "base color" through the rainbow
+  EVERY_N_SECONDS( 10 ) { nextPattern(); } // change patterns periodically
+}
+
+#define ARRAY_SIZE(A) (sizeof(A) / sizeof((A)[0]))
+
+void nextPattern()
+{
+  // add one to the current pattern number, and wrap around at the end
+  gCurrentPatternNumber = (gCurrentPatternNumber + 1) % ARRAY_SIZE( gPatterns);
+}
+
+void rainbow() 
+{
+  // FastLED's built-in rainbow generator
+  fill_rainbow( leds, NUM_LEDS, gHue, 7);
+}
+
+void rainbowWithGlitter() 
+{
+  // built-in FastLED rainbow, plus some random sparkly glitter
+  rainbow();
+  addGlitter(80);
+}
+
+void addGlitter( fract8 chanceOfGlitter) 
+{
+  if( random8() < chanceOfGlitter) {
+    leds[ random16(NUM_LEDS) ] += CRGB::White;
+  }
+}
+
+void confetti() 
+{
+  // random colored speckles that blink in and fade smoothly
+  fadeToBlackBy( leds, NUM_LEDS, 10);
+  int pos = random16(NUM_LEDS);
+  leds[pos] += CHSV( gHue + random8(64), 200, 255);
+}
+
+void sinelon()
+{
+  // a colored dot sweeping back and forth, with fading trails
+  fadeToBlackBy( leds, NUM_LEDS, 20);
+  int pos = beatsin16( 13, 0, NUM_LEDS-1 );
+  leds[pos] += CHSV( gHue, 255, 192);
+}
+
+void bpm()
+{
+  // colored stripes pulsing at a defined Beats-Per-Minute (BPM)
+  uint8_t BeatsPerMinute = 62;
+  CRGBPalette16 palette = PartyColors_p;
+  uint8_t beat = beatsin8( BeatsPerMinute, 64, 255);
+  for( int i = 0; i < NUM_LEDS; i++) { //9948
+    leds[i] = ColorFromPalette(palette, gHue+(i*2), beat-gHue+(i*10));
+  }
+}
+
+void juggle() {
+  // eight colored dots, weaving in and out of sync with each other
+  fadeToBlackBy( leds, NUM_LEDS, 20);
+  uint8_t dothue = 0;
+  for( int i = 0; i < 8; i++) {
+    leds[beatsin16( i+7, 0, NUM_LEDS-1 )] |= CHSV(dothue, 200, 255);
+    dothue += 32;
+  }
+}
+
+
 
 
 
@@ -1494,28 +1602,33 @@ void readTel()//Funçao que faz a leitura do Telegram.
       {
 //          strobe(0, 0, 0xff, 20, 30, 10);
    ledState = "clima";
-          String msg = "||Hora:"; 
-          msg += msg.concat(timeClient.getFormattedTime());
-          msg += "\n\n";
-          msg += "||Temperatura:";
+          time_t now = time(nullptr);
+          time_now = String(ctime(&now)).substring(0,24);
+          
+          String msg = "Hora:"; 
+          msg += time_now;
+          msg += ",";
+          msg += "\n";
+          msg += "Temperatura:";
           msg += msg.concat(readDHTTemperature());
-          msg += "C";
-          msg += "\n\n";
-          msg += "||Umidade:";
+          msg += "C,";
+          msg += "\n";
+          msg += "Umidade:";
           msg += msg.concat(readDHTHumidity());
-          msg += "%"; 
-          msg += "\n\n";
-          msg += "||Pressao:";
+          msg += "%,"; 
+          msg += "\n";
+          msg += "Pressao:";
           msg += msg.concat(readDHTPressao());
-          msg += " Pa"; 
-          msg += "\n\n";
-          msg += "||CO2:";
+          msg += " Pa,"; 
+          msg += "\n";
+          msg += "CO2:";
           msg += msg.concat(readCO2());
-          msg += " PPM"; 
-          msg += "\n\n";
+          msg += " PPM,"; 
+          msg += "\n";
           bot.sendMessage(id, msg, "");
+          
           addFile(SPIFFS, climaPath, msg.c_str());
-     
+
      }
 
               else if (text.indexOf("btc") > -1)//Caso o texto recebido contenha "OFF"
@@ -1554,13 +1667,14 @@ void readTel()//Funçao que faz a leitura do Telegram.
 
       welcome = "Bem vindo, " + from_name + ".\n";
       welcome += "Essa eh a MushLight\n\n";
-      welcome += "/foto : Para tirar foto\n";
+      welcome += "/foto : Tira uma foto\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";
       welcome += "/vermelho : Para ligar o LED \n";
       welcome += "/verde : Para ligar o LED verde\n";
       welcome += "/rainbow : Para ligar o LED \n";
       welcome += "/clima : Para verificar temperatura, humidade e pressao\n";
+      welcome += "/telegram : Para passar as msgs dos comandos do telegram\n";
       welcome += "/ledon: Liga o LED \n";
       welcome += "/ledoff: Para desligar o LED\n";
       welcome += "/start : Abre esse menu\n";
@@ -1586,31 +1700,55 @@ void verifica(){
        takeNewPhoto = true;
        sendPhotoTelegram();
       
-       
-       String msg = "||Hora:"; 
-          msg += msg.concat(timeClient.getFormattedTime());
-          msg += "\n\n";
-          msg += "||Temperatura:";
+        time_t now = time(nullptr);
+          time_now = String(ctime(&now)).substring(0,24);
+
+          String msg = "Hora:"; 
+          msg += time_now;
+          msg += ",";
+          msg += "\n";
+          msg += "Temperatura:";
           msg += msg.concat(readDHTTemperature());
-          msg += "C";
-          msg += "\n\n";
-          msg += "||Umidade:";
+          msg += "C,";
+          msg += "\n";
+          msg += "Umidade:";
           msg += msg.concat(readDHTHumidity());
-          msg += "%"; 
-          msg += "\n\n";
-          msg += "||Pressao:";
+          msg += "%,"; 
+          msg += "\n";
+          msg += "Pressao:";
           msg += msg.concat(readDHTPressao());
-          msg += " Pa"; 
-          msg += "\n\n";
-          msg += "||CO2:";
+          msg += " Pa,"; 
+          msg += "\n";
+          msg += "CO2:";
           msg += msg.concat(readCO2());
-          msg += " PPM"; 
-          msg += "\n\n";
+          msg += " PPM,"; 
+          msg += "\n";
           bot.sendMessage(id, msg, "");
+          
           addFile(SPIFFS, climaPath, msg.c_str());
           
 }
 
+void verifica2(){
+        time_t now = time(nullptr);
+          time_now = String(ctime(&now)).substring(0,24);
+
+          String msg = "{"; 
+          msg += " \"Temperatura\":";
+          msg += msg.concat(readDHTTemperature());
+          msg += ",";
+          msg += " \"Umidade\":";
+          msg += msg.concat(readDHTHumidity());
+         msg += ",";
+          msg += " \"Pressao\":";          
+          msg += msg.concat(readDHTPressao());
+          msg += ",";
+          msg += " \"CO2\":";          
+          msg += msg.concat(readCO2());  
+          msg += "}";  
+          writeFile(SPIFFS, loggerPath, msg.c_str());
+          
+}
 
 void connect()//Funçao para Conectar ao wifi e verificar à conexao.
 {
@@ -1643,26 +1781,18 @@ delay(1000);
 String shiba(){
 //const String site = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD&e=Coinbase";
 const String site = "https://www.bitstamp.net/api/v2/ticker/shibusd";
- 
-if (ledState == "shiba") {
-   
-     http.begin(site);
+    http.begin(site);
      int httpCode = http.GET(); 
      Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
+
+DynamicJsonDocument doc4(2000);
+    deserializeJson(doc4, http.getString());
+      JsonObject obj = doc4.as<JsonObject>();
+
     
-        DynamicJsonDocument doc4(2500); 
-       // JsonObject PRICE = doc4["last"].as<JsonObject>();
-        
-         DeserializationError error = deserializeJson(doc4, http.getString());
-        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
-        {
-                Serial.print(F("deserializeJson Failed"));
-                Serial.println(error.f_str());
-                delay(2500);
-//                return;
-        }
         Serial.print("HTTP Status Code: ");
         Serial.println(httpCode);
+
         String SHIBAUSDPrice = doc4["last"].as<String>();
                SHIBAUSDPrice += ":24h:";
                SHIBAUSDPrice += doc4["percent_change_24"].as<String>();
@@ -1678,7 +1808,7 @@ if (ledState == "shiba") {
         return SHIBAUSDPrice;
         http.end();  
         delay(5000);                                   
-}}
+}
 
 
 
@@ -1689,21 +1819,15 @@ if (ledState == "shiba") {
 String ltc(){
 //const String site = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD&e=Coinbase";
 const String site = "https://www.bitstamp.net/api/v2/ticker/ltcusd";
-     http.begin(site);
+       http.begin(site);
      int httpCode = http.GET(); 
      Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
+
+DynamicJsonDocument doc3(2000);
+    deserializeJson(doc3, http.getString());
+      JsonObject obj = doc3.as<JsonObject>();
+
     
-        DynamicJsonDocument doc3(2500); 
-       // JsonObject PRICE = doc3["last"].as<JsonObject>();
-        
-         DeserializationError error = deserializeJson(doc3, http.getString());
-        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
-        {
-                Serial.print(F("deserializeJson Failed"));
-                Serial.println(error.f_str());
-                delay(2500);
-//                return;
-        }
         Serial.print("HTTP Status Code: ");
         Serial.println(httpCode);
         String LTCUSDPrice = doc3["last"].as<String>();
@@ -1741,23 +1865,17 @@ if (ledState == "eth") {
      http.begin(site);
      int httpCode = http.GET(); 
      Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
+
+DynamicJsonDocument doc2(2000);
+    deserializeJson(doc2, http.getString());
+      JsonObject obj = doc2.as<JsonObject>();
+
     
-        DynamicJsonDocument doc2(2500); 
-       // JsonObject PRICE = doc2["last"].as<JsonObject>();
-        
-         DeserializationError error = deserializeJson(doc2, http.getString());
-        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
-        {
-                Serial.print(F("deserializeJson Failed"));
-                Serial.println(error.f_str());
-                delay(2500);
-//                return;
-        }
         Serial.print("HTTP Status Code: ");
         Serial.println(httpCode);
-        String ETHUSDPrice = doc2["last"].as<String>();
+        String ETHUSDPrice = obj["last"].as<String>();
                ETHUSDPrice += ":24h:";
-               ETHUSDPrice += doc2["percent_change_24"].as<String>();
+               ETHUSDPrice += obj["percent_change_24"].as<String>();
                
         http.end();
     
@@ -1773,7 +1891,61 @@ Serial.println(ETHUSDPrice.toDouble());
 
 
 
+String getSensorReadings(){
+String  clima2 = readTotal (SPIFFS, loggerPath);
+//String clima2 = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
+ 
 
+DynamicJsonDocument jsonBuffer(2000);
+    deserializeJson(jsonBuffer, clima2);
+      JsonObject obj = jsonBuffer.as<JsonObject>();
+
+   
+  // String sensor = obj["Temperatura"]["Umidade"]["Pressao"]["CO2"].as<String>();
+
+
+// String myString = String(clima2);
+ // Serial.println (myString);
+        
+    
+//  int delimiter, delimiter_1, delimiter_2, delimiter_3, delimiter_4;
+//  delimiter = myString.indexOf(",");
+//  delimiter_1 = myString.indexOf(",", delimiter + 1);
+//  delimiter_2 = myString.indexOf(",", delimiter_1 +1);
+//  delimiter_3 = myString.indexOf(",", delimiter_2 +1);
+//  delimiter_4 = myString.indexOf(",", delimiter_3 +1);
+//  String row = myString.substring(delimiter_2);
+//         row += myString.substring(delimiter_1 + 10, delimiter_2);
+//         row += myString.substring(delimiter_2 + 10, delimiter_3);
+//         row += myString.substring(delimiter_3 + 6, delimiter_4);
+
+
+
+
+String sensor = obj["Temperatura"].as<String>();
+          sensor += obj["Umidade"].as<String>();
+         sensor += obj["Pressao"].as<String>();
+         sensor += obj["CO2"].as<String>();
+ 
+
+        
+ return sensor;
+
+
+    
+}
+
+
+void configureEvents() {
+  events.onConnect([](AsyncEventSourceClient *client){
+    if(client->lastId()){
+      Serial.printf("Client connections. Id: %u\n", client->lastId());
+    }
+    // and set reconnect delay to 1 second
+    client->send("Ola da MushLight , um alo para o SantoCyber tambem",NULL,millis(),1000);
+  });
+  server.addHandler(&events);
+}
 
 
 
@@ -1799,23 +1971,12 @@ const String url = "http://api.coindesk.com/v1/bpi/currentprice/BTC.json";
         Serial.println(httpCode);
     
         String BTCUSDPrice = doc["bpi"]["USD"]["rate_float"].as<String>(); 
-         //      BTCUSDPrice += "24hchange:";
-         //      BTCUSDPrice += doc["percent_change_24"].as<String>();
-               
-
-        
-        
-        
-        //Store crypto price and update date in local variables
+  
         http.end();
-    
-       
     
         Serial.print("BTCUSD Price: ");                                                       //Display current price on serial monitor
         Serial.println(BTCUSDPrice.toDouble());
 
-                                                                                                                                                                                           //Display the current price
-    
         http.end();               
         return String(BTCUSDPrice.toDouble());
         delay(5000);                                   //Sleep for 15 minutes
