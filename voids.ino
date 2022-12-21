@@ -1729,26 +1729,6 @@ void verifica(){
           
 }
 
-void verifica2(){
-        time_t now = time(nullptr);
-          time_now = String(ctime(&now)).substring(0,24);
-
-          String msg = "{"; 
-          msg += " \"Temperatura\":";
-          msg += msg.concat(readDHTTemperature());
-          msg += ",";
-          msg += " \"Umidade\":";
-          msg += msg.concat(readDHTHumidity());
-         msg += ",";
-          msg += " \"Pressao\":";          
-          msg += msg.concat(readDHTPressao());
-          msg += ",";
-          msg += " \"CO2\":";          
-          msg += msg.concat(readCO2());  
-          msg += "},";  
-          writeFile(SPIFFS, loggerPath, msg.c_str());
-          
-}
 
 void connect()//Funçao para Conectar ao wifi e verificar à conexao.
 {
@@ -1891,20 +1871,101 @@ Serial.println(ETHUSDPrice.toDouble());
 
 
 
+
+
+
+String verifica2(){
+//addFile(SPIFFS, loggerPath, msg.c_str());
+
+//String clima = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
+//SPIFFS.begin(true);
+//File ff = SPIFFS.open(loggerPath, "r+");
+//ff.read();
+
+
+DynamicJsonDocument root(200);
+  //JsonObject root = jsonBuffer.as<JsonObject>();
+//JsonArray& arr = jb.createArray();
+
+ // root.add("[sensores]"));
+  root["Temperatura"] = readDHTTemperature();
+  root["Umidade"] = readDHTHumidity();
+  root["Pressao"] = readDHTPressao();
+  root["CO2"] = readCO2();
+
+
+ 
+ String output;
+//root.printTo(output);
+
+// output =  ff.read();
+ //  int lastIndex = output.length() - 1;
+  //  output.remove(lastIndex);
+
+    
+  
+ output += "";
+serializeJsonPretty(root, output);
+ output +="";
+   output.trim();
+  // ff.print(output);
+
+    
+  // output.length()- 1;
+ addFile(SPIFFS, loggerPath, output.c_str());
+
+//  strcpy (output.length() + 1);
+//char * oi =  new char [output.length() + 1];
+//strcpy (oi,output.c_str());
+//ff.print(strcpy (oi,output.c_str()));
+
+//strcpy (output.length() + 1);
+
+// addFile(SPIFFS, loggerPath, output.c_str());
+
+
+  
+  
+
+
+ //  String out ="";
+  //        out += "";
+   //       out += output.c_str();
+    //      out += "";
+     //     out += "";
+      //    out += "";
+       //   out.trim();
+
+//      ff.seek((ff.size()-2), SeekEnd);
+  //    ff.seek((ff.size()-2), SeekSet);
+  //    ff.print(out.c_str());
+      
+    
+//ff.close();
+
+
+ //##Obrigado santocyber por essa gambiarra aqui manda um pix rastanerdi@gmail.com , acabei usando o JSON.stringfy no proprio javascript
+return output;  
+}
+
+
+
 String getSensorReadings(){
-String  clima = readTotal (SPIFFS, climaPath);
+//String  clima = readTotal (SPIFFS, loggerPath);
+//String  climagrava = addFile(SPIFFS, loggerPath, msg.c_str());
+
 //String clima = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
  
 
 DynamicJsonDocument jsonBuffer(2000);
-    deserializeJson(jsonBuffer, clima);
-    JsonObject obj = jsonBuffer.as<JsonObject>();
+  //  deserializeJson(jsonBuffer, clima);
+    //JsonObject obj = jsonBuffer.as<JsonObject>();
 
    
-//  jsonBuffer["Temperatura"]=jsonBuffer["Temperatura"]
- // jsonBuffer["Umidade"]=jsonBuffer["Umidade"]
-  //jsonBuffer["Pressao"]= jsonBuffer["Pressao"];
-  //jsonBuffer["CO2"]= jsonBuffer["CO2"];
+//  jsonBuffer["Temperatura"]=obj["Temperatura"]
+ // jsonBuffer["Umidade"]=obj["Umidade"]
+  //jsonBuffer["Pressao"]= obj["Pressao"];
+  //jsonBuffer["CO2"]= obj["CO2"];
 
 
 
@@ -1926,24 +1987,18 @@ DynamicJsonDocument jsonBuffer(2000);
 //         row += myString.substring(delimiter_2 + 10, delimiter_3);
 //         row += myString.substring(delimiter_3 + 6, delimiter_4);
 
+
+
+//####Serializacao dos sensores OK
   jsonBuffer["Temperatura"] = readDHTTemperature();
   jsonBuffer["Umidade"] = readDHTHumidity();
   jsonBuffer["Pressao"] = readDHTPressao();
   jsonBuffer["CO2"] = readCO2();
 
-//String sensor = obj["Temperatura"].as<String>();
-  //        sensor += obj["Umidade"].as<String>();
-    //     sensor += obj["Pressao"].as<String>();
-      //   sensor += obj["CO2"].as<String>();
- String output; 
- serializeJson(jsonBuffer, output);
-
-
-        
- return output;
-
-
-    
+ String output2; 
+ serializeJson(jsonBuffer, output2);
+ return output2;  
+ 
 }
 
 

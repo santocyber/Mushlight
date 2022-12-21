@@ -1,3 +1,5 @@
+//Codigo disponivel no github desenvolvido por @SantoCyber
+
 #include <WiFi.h>
 #include <Wire.h>
 #include <ESPAsyncWebServer.h>
@@ -23,7 +25,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "EEPROM.h"
-
+//#include <"fstream">
 
 //#####Configura data logger
 
@@ -171,7 +173,7 @@ const char* ipPath = "/ip.txt";
 const char* gatewayPath = "/gateway.txt";
 const char* tokentelegramPath = "/tokentelegram.txt";
 const char* climaPath = "/clima.txt";
-const char* loggerPath = "/log.txt";
+const char* loggerPath = "/data.txt";
 
 
 
@@ -606,7 +608,7 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
   gateway = readFile (SPIFFS, gatewayPath);
   tokentelegram = readFile (SPIFFS, tokentelegramPath);
   clima = readFile (SPIFFS, climaPath);
-  logger = readFile (SPIFFS, loggerPath);
+  logger = readTotal (SPIFFS, loggerPath);
 
   Serial.println(ssid);
   Serial.println(pass);
@@ -718,14 +720,27 @@ FastLED.delay(2000 / velovar);
        
     // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
-      ledState = "log";
-      verifica();
-      request->send(SPIFFS, "/clima.txt", "text/html", false, processor);
+     // ledState = "log";
+   logger = readTotal (SPIFFS, loggerPath);
+  
+   
+   logger.trim();
+   logger += "}"; 
+  logger.length();
+  
+
+
+   // request->send(200, "application/json", String(delimiter));
+  // request->send_P(200, "text/plain", logger.c_str());
+//
+//    j = String();
+      request->send(SPIFFS, loggerPath, "text/plain");
     });
+    
       // Route to set GPIO state to HIGH
     server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
-      ledState = "loggrafico";
-      
+      //ledState = "loggrafico";
+       verifica2();
  
         request->send(SPIFFS, "/log.html", "text/html", false);
  //     request->send(SPIFFS, "/clima.txt", "text/json", false, processor);
@@ -749,11 +764,24 @@ FastLED.delay(2000 / velovar);
 
         // Route to set GPIO state to HIGH
     server.on("/deletelog", HTTP_GET, [](AsyncWebServerRequest *request) {
-      ledState = "deletelog";
+     // ledState = "deletelog";
       writeFile(SPIFFS, climaPath, "");
-      writeFile(SPIFFS, loggerPath, "");
+        writeFile(SPIFFS, loggerPath, "");
+ //     writeFile(SPIFFS, loggerPath, "");
+  //    writeFile(SPIFFS, loggerPath,"{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}}");
 
-      request->send(SPIFFS, "/index.html", "text/html", false);
+
+
+//writeFile(SPIFFS, loggerPath, "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}");
+//  writeFile(SPIFFS, loggerPath, "");
+
+//String s = "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}";
+//int lastIndex2 = s.length() - 1;
+//    s.remove(lastIndex2);
+
+      
+      
+      request->send(SPIFFS, "/log.html", "text/html", false);
     });
 
     
@@ -1122,7 +1150,7 @@ FastLED.delay(2000 / velovar);
        
                  // Route to set GPIO state to HIGH
         server.on("/pacifica", HTTP_GET, [](AsyncWebServerRequest *request) {
-          ledState = "pacifiga";
+          ledState = "pacifica";
           pacifica_loop();
           
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
@@ -1173,6 +1201,20 @@ FastLED.delay(2000 / velovar);
           ledState = "shiba";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
+          // Route to set GPIO state to HIGH
+        server.on("/credito", HTTP_GET, [](AsyncWebServerRequest *request) {
+          ledState = "credito";
+      bot.sendMessage(id, "Aloouu @santocyber, obrigado pela MushLight", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+
+
+          
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+     
+      
+      
+      
+      
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
     takeNewPhoto = true;
 //    request->send_P(200, "text/plain", "Taking Photo");
@@ -1196,7 +1238,6 @@ uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
 if (millis() - tempo7 > 1000)//Faz a verificaçao das funçoes a cada 2 Segundos
     {
-FastLED.setBrightness(dimmervar);
 FastLED.delay(2000 / velovar);
       tempo7 = millis();//Reseta o tempo
      
@@ -1318,18 +1359,6 @@ uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
      
    }
 
-if (ledState == "loggrafico") {
-
-
-if (millis() - tempo8 > 30000)//Faz a verificaçao das funçoes a cada 30min
-   {
-    
-//verifica2(); 
-      tempo8 = millis();
-     
-   }
-
-}
 
 if (ledState == "ledoff") {
 
@@ -1346,17 +1375,19 @@ if (ledState == "ledoff") {
     } 
   if (ledState == "rainbowon") {
     rainbowon();
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     } 
        if (ledState == "rainbow2") {
     rainbowRoutine();
-        FastLED.show(); // display this frame
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     }
   
   if (ledState == "matrixon") {
     matrixRoutine();
-        FastLED.show(); // display this frame
-        //FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    } 
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+} 
   
   if (ledState == "pride") {
     pride();
@@ -1403,7 +1434,7 @@ if (ledState == "ledon") {
 
     if (ledState == "fire2") {
     fireRoutine();
-        FastLED.show(); // display this frame
+    FastLED.show(); // display this frame
     }
 
           if (ledState == "snowon") {
@@ -1466,20 +1497,16 @@ time_t now = time(nullptr);
  
 
    if (ledState == "zebra") {
-    //    uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
-
     zebraNoise();
-        FastLED.show(); // display this frame
-          //FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-          //FastLED.setBrightness(dimmervar);
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     }
     
    if (ledState == "plasma") {
-  plasmaNoise();
-        FastLED.show(); // display this frame
-        //FastLED.delay(2000 / velovar);  
-        //FastLED.setBrightness(dimmervar);
-        }
+    plasmaNoise();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+       }
        if (ledState == "gif") {
 animation(1);
         FastLED.show(); // display this frame
@@ -1519,54 +1546,53 @@ oceanNoise();
     }
 
                if (ledState == "forest") {
-forestNoise();
-        FastLED.show(); // display this frame
+    forestNoise();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
     }
                    if (ledState == "madness") {
-madnessNoise();
-        FastLED.show(); // display this frame
+    madnessNoise();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     }
                    if (ledState == "lava") {
-lavaNoise();
- //FastLED.delay(2000 / velovar);
- 
-        FastLED.show(); // display this frame
+    lavaNoise();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
     }
                    if (ledState == "balls") {
-lightBallsRoutine();
- //FastLED.delay(2000 / velovar);        
- FastLED.show(); // display this frame
+    lightBallsRoutine();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
     }
                    if (ledState == "swirl") {
-swirlRoutine();
- //FastLED.delay(2000 / velovar);        
- FastLED.show(); // display this frame
+     swirlRoutine();
+     FastLED.show(); // display this frame
+     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
     }
                    if (ledState == "tetris") {
-tetrisRoutine();
-        FastLED.show(); // display this frame
+    tetrisRoutine();
+    FastLED.show(); // display this frame
     }
                    if (ledState == "snake") {
-snakeRoutine();
-        FastLED.show(); // display this frame
+    snakeRoutine();
+    FastLED.show(); // display this frame
     }
                        if (ledState == "arkanoid") {
-arkanoidRoutine();
-        FastLED.show(); // display this frame
+    arkanoidRoutine();
+    FastLED.show(); // display this frame
     } 
     if (ledState == "runningtext") {
-
-
-  //scrollTimer.setInterval(velovar);
- //FastLED.setBrightness(dimmervar);
- fillString(txt,corvar);
-
-        FastLED.show(); // display this frame
+    fillString(txt,corvar);
+    FastLED.show(); // display this frame
     }
     if (ledState == "telegram") {
- 
- fillString(text,2);
-        FastLED.show(); // display this frame
+    fillString(text,2);
+    FastLED.show(); // display this frame
     }
         if (ledState == "btc") {
 
@@ -1574,20 +1600,12 @@ arkanoidRoutine();
    {
       EEPROM.writeString(1, btc());
       tempo5 = millis();
-     
    }
+    fillString(EEPROM.readString(1),corvar);
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
 
-          
-  //scrollTimer.setInterval(velovar);
-  fillString(EEPROM.readString(1),corvar);
-
-        FastLED.show(); // display this frame
-     
-   
-// delay(2000);
     }
-
-           
             if (ledState == "eth") {
     if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
    {
@@ -1595,14 +1613,9 @@ arkanoidRoutine();
       tempo5 = millis();
      
    }
-
-
-  //scrollTimer.setInterval(velovar);
     fillString(EEPROM.readString(2),corvar);
-
-        FastLED.show(); // display this frame
-     
-   
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
  }
 
   if (ledState == "ltc") {
@@ -1613,15 +1626,8 @@ arkanoidRoutine();
       tempo5 = millis();
      
    }
-
-
-  //scrollTimer.setInterval(velovar);
-    fillString(EEPROM.readString(3),corvar);
-
-        FastLED.show(); // display this frame
-     
-   
-// delay(2000);    
+   fillString(EEPROM.readString(3),corvar);
+    FastLED.show(); // display this frame
 }
              if (ledState == "shiba") {
     if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
@@ -1630,92 +1636,70 @@ arkanoidRoutine();
       tempo5 = millis();
      
    }
-
-          
-
-  //scrollTimer.setInterval(velovar);
-    fillString(EEPROM.readString(4),corvar);
-
-        FastLED.show(); // display this frame
-     
-   
- }
-
-         if (ledState == "spark") {
-
-      sparklesRoutine();
-            //FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-FastLED.show(); // display this frame
-
+   fillString(EEPROM.readString(4),corvar);
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+    } 
+        if (ledState == "spark") {
+    sparklesRoutine();
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     }
-
-    
-        if (ledState == "star") {
-                 
-  starfallRoutine();
-               //FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
+       if (ledState == "star") {                
+   starfallRoutine();
+   FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
    FastLED.show(); // display this frame
-
-
     }
-
         if (ledState == "pacifica") {
-pacifica_loop();
-  FastLED.show(); // display this frame
-
+    pacifica_loop();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     }
-    
         if (ledState == "spiral") {
-ballRoutine();
-  FastLED.show(); // display this frame
-  //      uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);    
- }
+    ballRoutine();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+}
         if (ledState == "rainbowstrip") {
-rainbowStripeNoise();
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
- // FastLED.show(); // display this frame
-
-    }
+    rainbowStripeNoise();
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+   }
     
         if (ledState == "light") {
- lightersRoutine();
-  FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
-   }
+   lightersRoutine();
+   FastLED.show(); // display this frame
+   FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+  }
            if (ledState == "bpm") {
- bpm();
-  FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
+    bpm();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
    }
    if (ledState == "sinelon") {
- sinelon();
-  FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
+    sinelon();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
    }
    if (ledState == "confetti") {
- confetti();
-  FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
+    confetti();
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
    }
       if (ledState == "juggle") {
  juggle();
   FastLED.show(); // display this frame
    //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
  //FastLED.delay(2000 / veloframe);
+             FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
    }
    if (ledState == "rainbowgliter") {
  rainbowWithGlitter();
   FastLED.show(); // display this frame
    //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
+            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+
    }
    
         if (ledState == "runner") {
@@ -1725,6 +1709,13 @@ rainbowStripeNoise();
  //FastLED.delay(2000 / veloframe);
    }
 
+    if (ledState == "credito") {
+    fillString("Agradecimentos ao desenvolvedor @SantoCyber faz um pix rastanerdi@gmail.com",1);
+    FastLED.show(); // display this frame
+    }
+
+
+
     
     if (takeNewPhoto) {
     capturePhotoSaveSpiffs();
@@ -1733,12 +1724,12 @@ rainbowStripeNoise();
 
 
  //##Loop paralelo
-    if (millis() - tempo6 > 2000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo6 > 5000)//Faz a verificaçao das funçoes a cada 30min
    {
     
  events.send("ping",NULL,millis());
  events.send(getSensorReadings().c_str(),"new_readings" ,millis());
-   Serial.print(getSensorReadings().c_str());
+   //Serial.print(getSensorReadings().c_str());
     
       
       tempo6 = millis();
@@ -1746,6 +1737,13 @@ rainbowStripeNoise();
    }
 
 
+if (millis() - tempo8 > 6000000)//Faz a verificaçao das funçoes a cada 30min
+   {
+    
+verifica2(); 
+      tempo8 = millis();
+     
+   }
 
 
 //delay(2000);

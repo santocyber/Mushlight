@@ -1,13 +1,12 @@
 // On github at @SantoCyber
 
 // Get current sensor readings when the page loads
-window.addEventListener('load', getReadings);
-//window.addEventListener('load', getReadings2);
+window.addEventListener('load', getReadings2);
 
-// Create Temperature Chart
-var chartT = new Highcharts.Chart({
+
+var chartH = new Highcharts.Chart({
   chart:{
-    renderTo:'chart-temperature'
+    renderTo:'chart-historical'
   },
   series: [
     {
@@ -60,7 +59,7 @@ var chartT = new Highcharts.Chart({
   },
   yAxis: {
     title: {
-      text: 'TEMPEARATURA UMIDADE PRESSAO CO2'
+      text: 'TEMPERATURA UMIDADE PRESSAO CO2'
     }
   },
   credits: {
@@ -69,55 +68,71 @@ var chartT = new Highcharts.Chart({
 });
 
 
-//Plot temperature in the temperature chart
-function plotTemperature(jsonValue) {
 
-  var keys = Object.keys(jsonValue);
+function getReadings2(){
+var xmlhttp = new XMLHttpRequest();
+xmlhttp.onreadystatechange = function() {
+ if (this.readyState == 4 && this.status == 200) {
+
+
+     var myObj = JSON.parse(this.responseText);
+
+//     var myobj2 = JSON.stringify(this.responseText);
+  //   let result = myobj2.replace(/^\s+|\s+$/gm,'');
+    // let result2 = result.trim();
+
+//     var myobj3 = JSON.parse(result2);
+  //   var myobj4 = myobj3.replaceAll(' ','');
+    // var myObj = JSON.parse(myobj4);
+;
+    // const myObj2 = myObj3.replaceAll('null', '');
+
+//     var myObj2 = JSON.stringify(this.responseText, null, ' ');
+//     var myObj2 = JSON.stringify(this.responseText, null, ' ');
+//         myObj2 = myObj2.replaceAll('\\', '');
+//var ctx = myObj3.getContext("Temperatura");
+
+//    var myObj2 = JSON.parse(myObj);
+//  var myObj2 = JSON.parse(myObj);
+//  var myObj3 = JSON.parse(myObj2);
+//JSON.parse(JSON.stringify(myObject)))
+//    var myObj4 = myObj3["Temperatura"]["Umidade"]["Pressao"]["CO2"];
+
+
+//    plotHistorical(myObj);
+
+
+
+  var keys = Object.keys(myObj);
   console.log(keys);
   console.log(keys.length);
 
   for (var i = 0; i < keys.length; i++){
     var x = (new Date()).getTime();
-    console.log(x);
+    console.log('XXXX' + x);
     const key = keys[i];
-    var y = Number(jsonValue[key]);
-    console.log(y);
+    var y = Number(myObj[key]);
+    console.log('YYYYY' + y);
 
-    if(chartT.series[i].data.length > 40) {
-      chartT.series[i].addPoint([x, y], true, true, true);
-    } else {
-      chartT.series[i].addPoint([x, y], true, false, true);
-    }
+    chartH.series[i].addPoint([x, y], true, false, true);
 
-  }
+    console.log(myObj[key]);
+
 }
+    console.log('<pre>' + myObj + '</pre>');
 
 
 
-
-// Function to get current readings on the webpage when it loads for the first time
-function getReadings(){
-  var xhr = new XMLHttpRequest();
-  xhr.onreadystatechange = function() {
-    if (this.readyState == 4 && this.status == 200) {
-      var myObj = JSON.parse(this.responseText);
-      console.log(myObj);
-      plotTemperature(myObj);
     }
   };
-  xhr.open("GET", "/readings", true);
-  xhr.send();
+  xmlhttp.open("GET", "/log", true);
+  xmlhttp.send();
 }
 
 
 
 
 
-
-
-
-
-//##############Segundo chart
 
 
 
@@ -146,10 +161,4 @@ if (!!window.EventSource) {
     console.log("message", e.data);
   }, false);
 
-  source.addEventListener('new_readings', function(e) {
-    console.log("new_readings", e.data);
-    var myObj = JSON.parse(e.data);
-    console.log(myObj);
-    plotTemperature(myObj);
-  }, false);
 }
