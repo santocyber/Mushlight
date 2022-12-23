@@ -17,6 +17,7 @@
 #include "bitmap6.h"
 #include "bitmap7.h"
 #include "bitmap8.h"
+#include "bitmap9.h"
 #include <DHT.h>
 #include <FS.h>
 #include "esp_camera.h"
@@ -146,6 +147,7 @@ const char* PARAM_INPUT_7 = "cor";
 const char* PARAM_INPUT_8 = "text";
 const char* PARAM_INPUT_9 = "velocidade";
 const char* PARAM_INPUT_10 = "dimmer";
+const char* PARAM_INPUT_13 = "sleeptime";
 
 //Variables to save values from HTML form
 String ssid;
@@ -211,6 +213,14 @@ unsigned long tempo5 = millis();
 unsigned long tempo6 = millis();
 unsigned long tempo7 = millis();
 unsigned long tempo8 = millis();
+
+//######Config sleep
+unsigned long temposleep0;
+unsigned long temposleep1;
+long settemposleep = 600000;
+String sleeptime;
+String State;
+
 
 boolean AUTOPLAY = 1;        
 #define AUTOPLAY_PERIOD 30    
@@ -354,9 +364,12 @@ String readTotal(fs::FS &fs, const char * path){
   
   String fileContent;
   while(file.available()){
-    fileContent = file.readStringUntil('}');
+    fileContent = file.readString();
     break;     
   }
+    fileContent.trim();
+  fileContent.length() - 1;
+
   return fileContent;
 }
 
@@ -377,6 +390,8 @@ String readFile(fs::FS &fs, const char * path){
     fileContent = file.readStringUntil('\n');
     break;     
   }
+  fileContent.trim();
+  fileContent.length();
   return fileContent;
 }
 
@@ -398,16 +413,17 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
 
 
 // Adicinando no arquivo append file to SPIFFS
-void addFile(fs::FS &fs, const char * path, const char * message){
+bool addFile(fs::FS &fs, const char * path, const char * message){
   Serial.printf("ADD file: %s\r\n", path);
 
   File file = fs.open(path, FILE_APPEND);
   if(!file){
     Serial.println("- failed to open file for writing");
-    return;
+    return false;
   }
   if(file.print(message)){
     Serial.println("- file adicionado");
+    return true;
   } else {
     Serial.println("- frite failed");
   }
@@ -583,7 +599,7 @@ void setup() {
    dht.begin();
 
   EEPROM.begin(512);
-    
+
  
 //########### LED
 
@@ -690,6 +706,14 @@ client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.tel
             // Write file to save value
             // request->send(200, "text/html", "<a href='../runningtext' Executar</a><br><br>Mensagem enviada:" + txt );
                 }
+    // HTTP POST ssid value
+          if (p->name() == PARAM_INPUT_13) {
+            sleeptime = p->value().c_str();
+            Serial.print("Sleep set to: ");
+            Serial.println(sleeptime);
+            // Write file to save value
+            // request->send(200, "text/html", "<a href='../runningtext' Executar</a><br><br>Mensagem enviada:" + txt );
+                }
   
           // HTTP POST ssid value
           if (p->name() == PARAM_INPUT_10) {
@@ -703,6 +727,8 @@ client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.tel
 uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
 uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
+long settemposleep = strtoul(sleeptime.c_str(),NULL, 1000);
+
 FastLED.setBrightness(dimmervar);
 FastLED.delay(2000 / velovar);
 
@@ -720,35 +746,20 @@ FastLED.delay(2000 / velovar);
        
     // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
-     // ledState = "log";
-   logger = readTotal (SPIFFS, loggerPath);
-  
-   
-   logger.trim();
-   logger += "}"; 
-  logger.length();
-  
-
-
-   // request->send(200, "application/json", String(delimiter));
-  // request->send_P(200, "text/plain", logger.c_str());
-//
-//    j = String();
-      request->send(SPIFFS, loggerPath, "text/plain");
-    });
+   logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}";
+   logger += readFile(SPIFFS, loggerPath); 
+   logger += "]}";
+  //###Q gambiarra pra funcionar o JSON
+    request->send(200, "application/json", logger);
+   request->send_P(200, "text/plain", logger.c_str());
+   logger = String();
+  });
     
       // Route to set GPIO state to HIGH
     server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
-      //ledState = "loggrafico";
-       verifica2();
- 
+        verifica2();
         request->send(SPIFFS, "/log.html", "text/html", false);
- //     request->send(SPIFFS, "/clima.txt", "text/json", false, processor);
-//        request->send_P(200, "text/plain", getSensorReadings().c_str());
-
-//   String json = getSensorReadings();
-  //  request->send(200, "application/json", json);
-
+ 
     });
 
   // Request for the latest sensor readings
@@ -767,21 +778,19 @@ FastLED.delay(2000 / velovar);
      // ledState = "deletelog";
       writeFile(SPIFFS, climaPath, "");
         writeFile(SPIFFS, loggerPath, "");
- //     writeFile(SPIFFS, loggerPath, "");
-  //    writeFile(SPIFFS, loggerPath,"{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}}");
-
-
-
-//writeFile(SPIFFS, loggerPath, "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}");
-//  writeFile(SPIFFS, loggerPath, "");
-
-//String s = "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}";
-//int lastIndex2 = s.length() - 1;
-//    s.remove(lastIndex2);
-
+     // writeFile(SPIFFS, loggerPath, "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}");
       
-      
-      request->send(SPIFFS, "/log.html", "text/html", false);
+      request->send(SPIFFS, "/index.html", "text/html", false);
+    });
+
+            // Route to set GPIO state to HIGH
+    server.on("/apagaconfig", HTTP_GET, [](AsyncWebServerRequest *request) {
+     // ledState = "deletelog";
+      writeFile(SPIFFS, ssidPath, "");
+      writeFile(SPIFFS, passPath, "");
+      writeFile(SPIFFS, gatewayPath, "");
+      writeFile(SPIFFS, tokentelegramPath, "");
+      request->send(SPIFFS, "/index.html", "text/html", false);
     });
 
     
@@ -1072,6 +1081,12 @@ FastLED.delay(2000 / velovar);
           ledState = "gif8";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
+                            // Route to set GPIO state to HIGH
+    server.on("/gif9", HTTP_GET, [](AsyncWebServerRequest *request) {
+        animation(9);
+          ledState = "gif9";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
 
                       // Route to set GPIO state to HIGH
     server.on("/oceano", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -1210,7 +1225,15 @@ FastLED.delay(2000 / velovar);
           
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
-     
+            // Route to set GPIO state to HIGH
+        server.on("/sleep", HTTP_GET, [](AsyncWebServerRequest *request) {
+          
+          State = "sleep";
+         temposleep0 = millis();
+
+          
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
       
       
       
@@ -1360,6 +1383,17 @@ uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
    }
 
 
+    if (State == "sleep") {     
+          temposleep1 = millis();
+
+    if (temposleep1 - temposleep0 > settemposleep)//Faz a verificaçao das funçoes a cada 30min
+   {
+    ledState = "ledoff";
+    FastLED.show(); // display this frame
+     State = "acordado";     
+   }
+   }
+
 if (ledState == "ledoff") {
 
     ledoff();
@@ -1437,14 +1471,13 @@ if (ledState == "ledon") {
     FastLED.show(); // display this frame
     }
 
-          if (ledState == "snowon") {
-            snowRoutine();
-            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-            FastLED.show(); // display this frame
-            
+    if (ledState == "snowon") {
+    snowRoutine();
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+    FastLED.show(); // display this frame         
     }
     
-              if (ledState == "temp") {
+    if (ledState == "temp") {
     fillString(readDHTTemperature() + "C", 0x0000FF);
         FastLED.show(); // display this frame
     }
@@ -1538,6 +1571,10 @@ animation(7);
     }
          if (ledState == "gif8") {
 animation(8);
+        FastLED.show(); // display this frame
+    }
+             if (ledState == "gif9") {
+animation(9);
         FastLED.show(); // display this frame
     }
            if (ledState == "oceano") {
@@ -1714,8 +1751,6 @@ oceanNoise();
     FastLED.show(); // display this frame
     }
 
-
-
     
     if (takeNewPhoto) {
     capturePhotoSaveSpiffs();
@@ -1730,8 +1765,7 @@ oceanNoise();
  events.send("ping",NULL,millis());
  events.send(getSensorReadings().c_str(),"new_readings" ,millis());
    //Serial.print(getSensorReadings().c_str());
-    
-      
+       
       tempo6 = millis();
      
    }
@@ -1746,6 +1780,7 @@ verifica2();
    }
 
 
-//delay(2000);
+
+
   
 }

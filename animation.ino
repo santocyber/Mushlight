@@ -69,6 +69,14 @@ void animation(byte n) {
         loadImage(cogu_array[frameNum]);
         if (++frameNum >= sizeof(cogu_array) / sizeof(cogu_array[0])) frameNum = 0;
         break;
+            case 9:
+        // EFFECT_ANIMATION_8
+        loadImage(palitoallArray[frameNum]);
+        if (++frameNum >= sizeof(palitoallArray) / sizeof(palitoallArray[0])) frameNum = 0;
+        break;
+
+
+
         
     }
   }

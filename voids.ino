@@ -1459,7 +1459,7 @@ void  sendPhotoTelegram()
       if (!fb)
       {
         Serial.println("Camera capture failed");
-        bot.sendMessage(chat_id, "Camera capture failed", "");
+        bot.sendMessage(chat_id, "Nao fuqe triste, falhou, tente denovo", "");
         return;
       }
       dataAvailable = true;
@@ -1467,6 +1467,8 @@ void  sendPhotoTelegram()
       bot.sendPhotoByBinary(chat_id, "image/jpeg", fb->len,
                             isMoreDataAvailable, nullptr,
                             getNextBuffer, getNextBufferLen);
+      bot.sendMessage(chat_id, "Sorria vc esta sendo filmado", "");
+
 
       Serial.println("done!");
 
@@ -1627,7 +1629,7 @@ void readTel()//Funçao que faz a leitura do Telegram.
           msg += "\n";
           bot.sendMessage(id, msg, "");
           
-          addFile(SPIFFS, climaPath, msg.c_str());
+       //   addFile(SPIFFS, climaPath, msg.c_str());
 
      }
 
@@ -1638,10 +1640,23 @@ void readTel()//Funçao que faz a leitura do Telegram.
         
         bot.sendMessage(id,btc(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }  
+      else if (text.indexOf("ltc") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        ledState = "ltc";
+         EEPROM.writeString(1, ltc());
+        
+        bot.sendMessage(id,ltc(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }  
       //######Comando telegram
       else if (text.indexOf("clock") > -1)//Caso o texto recebido contenha "OFF"
       {
         ledState = "clock";
+        
+        bot.sendMessage(id,timeClient.getFormattedTime(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }     
+      else if (text.indexOf("rainbow") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        ledState = "rainbowon";
         
         bot.sendMessage(id,timeClient.getFormattedTime(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
@@ -1670,15 +1685,21 @@ void readTel()//Funçao que faz a leitura do Telegram.
       welcome += "/foto : Tira uma foto\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";
+      welcome += "/clock : Mostra o relogio na MushlLght \n";
       welcome += "/vermelho : Para ligar o LED \n";
       welcome += "/verde : Para ligar o LED verde\n";
       welcome += "/rainbow : Para ligar o LED \n";
       welcome += "/clima : Para verificar temperatura, humidade e pressao\n";
-      welcome += "/telegram : Para passar as msgs dos comandos do telegram\n";
+      welcome += "/telegram : Passa as msgs dos comandos do telegram\n";
       welcome += "/ledon: Liga o LED \n";
       welcome += "/ledoff: Para desligar o LED\n";
       welcome += "/start : Abre esse menu\n";
-      welcome += "codigo fonte em https://github.com/santocyber/MushLight\n";
+       welcome += "Acesse o ip http://";
+      welcome += ip.c_str(); 
+      welcome += "\n";
+      welcome += "Para mais controles e vizualizar o historico dos sensores\n";
+      welcome += "Codigo fonte em https://github.com/santocyber/MushLight\n";
+     
 
       bot.sendMessage(id, welcome, "Markdown");      
       }
@@ -1878,10 +1899,6 @@ String verifica2(){
 //addFile(SPIFFS, loggerPath, msg.c_str());
 
 //String clima = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
-//SPIFFS.begin(true);
-//File ff = SPIFFS.open(loggerPath, "r+");
-//ff.read();
-
 
 DynamicJsonDocument root(200);
   //JsonObject root = jsonBuffer.as<JsonObject>();
@@ -1896,52 +1913,14 @@ DynamicJsonDocument root(200);
 
  
  String output;
-//root.printTo(output);
-
-// output =  ff.read();
- //  int lastIndex = output.length() - 1;
-  //  output.remove(lastIndex);
-
     
-  
- output += "";
-serializeJsonPretty(root, output);
- output +="";
-   output.trim();
-  // ff.print(output);
+  output = ",";
+serializeJson(root, output);
+     output += "";
 
-    
-  // output.length()- 1;
+ 
+
  addFile(SPIFFS, loggerPath, output.c_str());
-
-//  strcpy (output.length() + 1);
-//char * oi =  new char [output.length() + 1];
-//strcpy (oi,output.c_str());
-//ff.print(strcpy (oi,output.c_str()));
-
-//strcpy (output.length() + 1);
-
-// addFile(SPIFFS, loggerPath, output.c_str());
-
-
-  
-  
-
-
- //  String out ="";
-  //        out += "";
-   //       out += output.c_str();
-    //      out += "";
-     //     out += "";
-      //    out += "";
-       //   out.trim();
-
-//      ff.seek((ff.size()-2), SeekEnd);
-  //    ff.seek((ff.size()-2), SeekSet);
-  //    ff.print(out.c_str());
-      
-    
-//ff.close();
 
 
  //##Obrigado santocyber por essa gambiarra aqui manda um pix rastanerdi@gmail.com , acabei usando o JSON.stringfy no proprio javascript
@@ -1951,43 +1930,7 @@ return output;
 
 
 String getSensorReadings(){
-//String  clima = readTotal (SPIFFS, loggerPath);
-//String  climagrava = addFile(SPIFFS, loggerPath, msg.c_str());
-
-//String clima = "{\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351\"Temperatura\":\"44\",\"Umidade\":51,\"Pressao\":23,\"CO2\":1351}";
- 
-
 DynamicJsonDocument jsonBuffer(2000);
-  //  deserializeJson(jsonBuffer, clima);
-    //JsonObject obj = jsonBuffer.as<JsonObject>();
-
-   
-//  jsonBuffer["Temperatura"]=obj["Temperatura"]
- // jsonBuffer["Umidade"]=obj["Umidade"]
-  //jsonBuffer["Pressao"]= obj["Pressao"];
-  //jsonBuffer["CO2"]= obj["CO2"];
-
-
-
-//jsonBuffer["Temperatura"]["Umidade"]["Pressao"]["CO2"].as<String>();
-
-
-// String myString = String(clima2);
- // Serial.println (myString);
-        
-    
-//  int delimiter, delimiter_1, delimiter_2, delimiter_3, delimiter_4;
-//  delimiter = myString.indexOf(",");
-//  delimiter_1 = myString.indexOf(",", delimiter + 1);
-//  delimiter_2 = myString.indexOf(",", delimiter_1 +1);
-//  delimiter_3 = myString.indexOf(",", delimiter_2 +1);
-//  delimiter_4 = myString.indexOf(",", delimiter_3 +1);
-//  String row = myString.substring(delimiter_2);
-//         row += myString.substring(delimiter_1 + 10, delimiter_2);
-//         row += myString.substring(delimiter_2 + 10, delimiter_3);
-//         row += myString.substring(delimiter_3 + 6, delimiter_4);
-
-
 
 //####Serializacao dos sensores OK
   jsonBuffer["Temperatura"] = readDHTTemperature();

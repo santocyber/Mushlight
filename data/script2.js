@@ -1,7 +1,7 @@
 // On github at @SantoCyber
 
 // Get current sensor readings when the page loads
-window.addEventListener('load', getReadings2);
+window.addEventListener('load', getReadings);
 
 
 var chartH = new Highcharts.Chart({
@@ -69,64 +69,58 @@ var chartH = new Highcharts.Chart({
 
 
 
-function getReadings2(){
-var xmlhttp = new XMLHttpRequest();
-xmlhttp.onreadystatechange = function() {
- if (this.readyState == 4 && this.status == 200) {
+//Plot temperature in the temperature chart
+function plotTemperature(jsonValue) {
+
+ var keys2 = Object.keys(jsonValue.sensores);
+    for (var f = 0; f < keys2.length; f++){
+
+console.log(keys2);
+  console.log(keys2.length);
 
 
-     var myObj = JSON.parse(this.responseText);
-
-//     var myobj2 = JSON.stringify(this.responseText);
-  //   let result = myobj2.replace(/^\s+|\s+$/gm,'');
-    // let result2 = result.trim();
-
-//     var myobj3 = JSON.parse(result2);
-  //   var myobj4 = myobj3.replaceAll(' ','');
-    // var myObj = JSON.parse(myobj4);
-;
-    // const myObj2 = myObj3.replaceAll('null', '');
-
-//     var myObj2 = JSON.stringify(this.responseText, null, ' ');
-//     var myObj2 = JSON.stringify(this.responseText, null, ' ');
-//         myObj2 = myObj2.replaceAll('\\', '');
-//var ctx = myObj3.getContext("Temperatura");
-
-//    var myObj2 = JSON.parse(myObj);
-//  var myObj2 = JSON.parse(myObj);
-//  var myObj3 = JSON.parse(myObj2);
-//JSON.parse(JSON.stringify(myObject)))
-//    var myObj4 = myObj3["Temperatura"]["Umidade"]["Pressao"]["CO2"];
-
-
-//    plotHistorical(myObj);
-
-
-
-  var keys = Object.keys(myObj);
-  console.log(keys);
+  var keys = Object.keys(jsonValue.sensores[f]);
+console.log(keys);
   console.log(keys.length);
 
-  for (var i = 0; i < keys.length; i++){
+
+    for (var i = 0; i < keys.length; i++){
     var x = (new Date()).getTime();
-    console.log('XXXX' + x);
+    console.log(x);
     const key = keys[i];
-    var y = Number(myObj[key]);
-    console.log('YYYYY' + y);
+    var y = Number(jsonValue.sensores[f][key]);
+    console.log(y);
 
-    chartH.series[i].addPoint([x, y], true, false, true);
+    if(chartH.series[i].data.length > 40) {
+      chartH.series[i].addPoint([x, y], true, true, true);
+    } else {
+      chartH.series[i].addPoint([x, y], true, false, true);
+    }
 
-    console.log(myObj[key]);
-
+  }
 }
-    console.log('<pre>' + myObj + '</pre>');
+}
 
 
+
+// Function to get current readings on the webpage when it loads for the first time
+function getReadings(){
+  var xhr = new XMLHttpRequest();
+  xhr.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      var myobj2 = JSON.stringify(this.responseText);
+     var myobj3 = JSON.parse(myobj2);
+var myObj = JSON.parse(myobj3);
+//var myObj = myobj4[0]['Temperatura'][1]['Umidade'][2]['Pressao'][3]['CO2'];
+
+
+console.log(myObj);
+      plotTemperature(myObj);
 
     }
   };
-  xmlhttp.open("GET", "/log", true);
-  xmlhttp.send();
+  xhr.open("GET", "/log", true);
+  xhr.send();
 }
 
 
@@ -136,29 +130,3 @@ xmlhttp.onreadystatechange = function() {
 
 
 
-
-
-
-
-
-
-
-
-if (!!window.EventSource) {
-  var source = new EventSource('/events');
-
-  source.addEventListener('open', function(e) {
-    console.log("Events Connected");
-  }, false);
-
-  source.addEventListener('error', function(e) {
-    if (e.target.readyState != EventSource.OPEN) {
-      console.log("Events Disconnected");
-    }
-  }, false);
-
-  source.addEventListener('message', function(e) {
-    console.log("message", e.data);
-  }, false);
-
-}
