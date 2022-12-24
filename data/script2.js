@@ -10,7 +10,7 @@ var chartH = new Highcharts.Chart({
   },
   series: [
     {
-      name: 'Temperature',
+      name: 'Temperatura',
       type: 'line',
       color: '#101D42',
       marker: {
@@ -49,13 +49,25 @@ var chartH = new Highcharts.Chart({
         fillColor: '#71B48D',
       }
     },
+    {
+      name: 'Hora',
+      type: 'line',
+      color: '#71B48D',
+      marker: {
+        symbol: 'triangle-down',
+        radius: 13,
+        fillColor: '#71B48D',
+      }
+    },
+
   ],
   title: {
     text: undefined
   },
   xAxis: {
-    type: 'datetime',
-    dateTimeLabelFormats: { second: '%H:%M:%S' }
+    name: 'Hora',
+    type: 'line',
+//    dateTimeLabelFormats: { second: '%H:%M:%S' }
   },
   yAxis: {
     title: {
@@ -85,9 +97,11 @@ console.log(keys);
 
 
     for (var i = 0; i < keys.length; i++){
-    var x = (new Date()).getTime();
-    console.log(x);
+//    var x = (new Date()).getTime();
     const key = keys[i];
+
+    var x = String(jsonValue.sensores[f][keys[4]]);
+    console.log(x);
     var y = Number(jsonValue.sensores[f][key]);
     console.log(y);
 
@@ -122,7 +136,6 @@ console.log(myObj);
   xhr.open("GET", "/log", true);
   xhr.send();
 }
-
 
 
 

@@ -26,7 +26,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "EEPROM.h"
-//#include <"fstream">
+
 
 //#####Configura data logger
 
@@ -585,6 +585,9 @@ String processor(const String& var){
 }
 
 
+
+
+
 //######################## SETUP
 
 
@@ -746,7 +749,7 @@ FastLED.delay(2000 / velovar);
        
     // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
-   logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}";
+   logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\",\"Hora\":\"22:00\"}";
    logger += readFile(SPIFFS, loggerPath); 
    logger += "]}";
   //###Q gambiarra pra funcionar o JSON
@@ -1219,7 +1222,7 @@ FastLED.delay(2000 / velovar);
           // Route to set GPIO state to HIGH
         server.on("/credito", HTTP_GET, [](AsyncWebServerRequest *request) {
           ledState = "credito";
-      bot.sendMessage(id, "Aloouu @santocyber, obrigado pela MushLight", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+    //  bot.sendMessage(id, "Aloouu @santocyber, obrigado pela MushLight", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
 
 
           
@@ -1354,33 +1357,6 @@ FastLED.delay(2000 / velovar);
 void loop() {
 
 uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
-
-
-
-
-
-//#####Configura  loop telegram 
-   if (millis() - tempo > 30000)//Faz a verificaçao das funçoes a cada 2 Segundos
-    {
-     // connect();//Funçao para verificar se ainda há conexao
-      readTel();//Funçao para ler o telegram
-      tempo = millis();//Reseta o tempo
-     
-   }
-
-  if (millis() - tempo2 > 1800000)//Faz a verificaçao das funçoes a cada 30min
-   {   //tira foto e manda clima no telegram
-      verifica();
-      tempo2 = millis();
-     
-   }
-
-     if (millis() - tempo3 > 500)//Faz a verificaçao das funçoes a cada 30min
-   {
-      //readSoundSensor();
-      tempo3 = millis();
-     
-   }
 
 
     if (State == "sleep") {     
@@ -1747,7 +1723,7 @@ oceanNoise();
    }
 
     if (ledState == "credito") {
-    fillString("Agradecimentos ao desenvolvedor @SantoCyber faz um pix rastanerdi@gmail.com",1);
+    fillString("Obrigado @SantoCyber faz um pix rastanerdi@gmail.com",1);
     FastLED.show(); // display this frame
     }
 
@@ -1771,15 +1747,37 @@ oceanNoise();
    }
 
 
-if (millis() - tempo8 > 6000000)//Faz a verificaçao das funçoes a cada 30min
+if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 30min
    {
-    
+    //#### Grava o LOG em JSON
 verifica2(); 
       tempo8 = millis();
      
    }
 
 
+//#####Configura  loop telegram 
+   if (millis() - tempo > 30000)//Faz a verificaçao das funçoes a cada 2 Segundos
+    {
+     // connect();//Funçao para verificar se ainda há conexao
+      readTel();//Funçao para ler o telegram
+      tempo = millis();//Reseta o tempo
+     
+   }
+
+  if (millis() - tempo2 > 1800000)//Faz a verificaçao das funçoes a cada 30min
+   {   //tira foto e manda clima no telegram
+      verifica();
+      tempo2 = millis();
+     
+   }
+
+     if (millis() - tempo3 > 500)//Faz a verificaçao das funçoes a cada 30min
+   {
+      //readSoundSensor();
+      tempo3 = millis();
+     
+   }
 
 
   

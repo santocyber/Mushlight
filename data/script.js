@@ -11,7 +11,7 @@ var chartT = new Highcharts.Chart({
   },
   series: [
     {
-      name: 'Temperature',
+      name: 'Temperatura',
       type: 'line',
       color: '#101D42',
       marker: {
