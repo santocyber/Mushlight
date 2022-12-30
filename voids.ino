@@ -460,31 +460,31 @@ void ledoff(){
   void pisca(){ 
          fill_solid( leds, NUM_LEDS, CRGB::Red);
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::Green);
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::Blue);
          FastLED.show();
-         delay(50);
+         delay(250);
         fill_solid( leds, NUM_LEDS, CRGB::Salmon);
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::Yellow);
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::HotPink);
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::Violet);
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::FairyLight );
          FastLED.show();
-         delay(50);
+         delay(250);
          fill_solid( leds, NUM_LEDS, CRGB::Cyan);
          FastLED.show();
-         delay(50);
+         delay(250);
          
   }
     void piscalento(){ 
@@ -894,15 +894,14 @@ int8_t vectorB[2];
 CRGB ballColor;
 
 void ballRoutine() {
-  if (loadingFlag) {
     for (byte i = 0; i < 2; i++) {
       coordB[i] = WIDTH / 2 * 10;
       vectorB[i] = random(8, 20);
       ballColor = CHSV(random(0, 9) * 28, 255, 255);
     }
   
-    loadingFlag = false;
-  }
+   
+
   for (byte i = 0; i < 2; i++) {
     coordB[i] += vectorB[i];
     if (coordB[i] < 0) {
@@ -1487,25 +1486,28 @@ void  sendPhotoTelegram()
 
 
 // Sound sensor code
-void readSoundSensor(){
-//valorvibra = analogRead(mic);
+void readVibra(){
+   valorvibra = analogRead(vibra);
+Serial.println(valorvibra);
+Serial.println("||");
+//Serial.println(analogRead(vibra));
 
 
- if (valorvibra > 5000) {
+ if (valorvibra<4094) {
 clap_counter++;
  if (clap_counter > 0) { 
   //takeNewPhoto = true; 
      if (led_state) {
       led_state = false;
       color_counter++;// LED was on, now off
-      if(color_counter > 7){ color_counter = 0;}
+      if(color_counter > 8){ color_counter = 0;}
       changeColor();
       //clap_counter = 0;
   //    sound_value = 0;
 Serial.println("Clap on");
 Serial.println(color_counter);
 
-delay(300);
+delay(500);
 
       
    }
@@ -1515,14 +1517,15 @@ delay(300);
         ledState = "ledoff";
 
       Serial.println("Clap off");
-      delay(300);
+      delay(500);
     }}
-  delay(300);
+  delay(500);
   //      Serial.println("sound");
-  Serial.println(valorvibra);
+ // Serial.println(valorvibra);
 
  // Serial.println(color_counter);
-  Serial.println("||" + clap_counter);
+  Serial.println("||");
+  Serial.println(clap_counter);
 
     }}
 
@@ -1544,12 +1547,10 @@ if (color_counter == 0)
   if (color_counter == 2)
   { 
     ledState = "blue";
-    //     bot.sendMessage(id, "Dimmer", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-
     }
    if (color_counter == 3)
   { 
-      ledState = "pisca";
+      ledState = "balls";
     }
    if (color_counter == 4)
   { 
@@ -1567,6 +1568,10 @@ if (color_counter == 0)
  if (color_counter == 7)
   { 
  ledState = "clock";
+}
+ if (color_counter == 8)
+  { 
+ ledState = "btc";
 }
 
   //sendPhotoTelegram();
@@ -1850,6 +1855,108 @@ const String url = "http://api.coindesk.com/v1/bpi/currentprice/BTC.json";
         delay(5000);                                   //Sleep for 15 minutes
 }
 
+String doge(){
+
+const String url = "https://api.bitfinex.com/v1/pubticker/doge:usd";
+
+    
+        http.begin(url);
+        int httpCode = http.GET();                                                                                                                                                                                                                                                //Get crypto price from API
+        StaticJsonDocument<2000> doc;
+        DeserializationError error = deserializeJson(doc, http.getString());
+    
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+    
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+    
+        String DOGEPrice = doc["last_price"].as<String>(); 
+  
+        http.end();
+    
+        Serial.print("Doge Price: ");                                                       //Display current price on serial monitor
+        Serial.println(DOGEPrice.toDouble());
+
+        http.end();               
+        return DOGEPrice;
+        delay(5000);                                   //Sleep for 15 minutes
+}
+
+String xmr(){
+
+const String url = "https://api.bitfinex.com/v1/pubticker/xmrusd";
+
+    
+        http.begin(url);
+        int httpCode = http.GET();                                                                                                                                                                                                                                                //Get crypto price from API
+        StaticJsonDocument<2000> doc;
+        DeserializationError error = deserializeJson(doc, http.getString());
+    
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+    
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+    
+        String XMRPrice = doc["last_price"].as<String>(); 
+  
+        http.end();
+    
+        Serial.print("XMR Price: ");                                                       //Display current price on serial monitor
+        Serial.println(XMRPrice.toDouble());
+
+        http.end();               
+        return String(XMRPrice.toDouble());
+        delay(5000);                                   //Sleep for 15 minutes
+}
+
+String dolar(){
+
+const String url = "https://economia.awesomeapi.com.br/json/last/USD";
+
+    
+        http.begin(url);
+        int httpCode = http.GET();                                                                                                                                                                                                                                                //Get crypto price from API
+        StaticJsonDocument<2000> doc;
+        DeserializationError error = deserializeJson(doc, http.getString());
+    
+        if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
+        {
+                Serial.print(F("deserializeJson Failed"));
+                Serial.println(error.f_str());
+                delay(2500);
+//                return;
+        }
+    
+        Serial.print("HTTP Status Code: ");
+        Serial.println(httpCode);
+    
+        String dolarPrice = doc["USDBRL"]["bid"].as<String>(); 
+               dolarPrice += ":24h:";
+               dolarPrice += doc["pctChange"].as<String>();
+                
+  
+        http.end();
+    
+        Serial.print("Dolar Price: ");                                                       //Display current price on serial monitor
+        Serial.println(dolarPrice.toDouble());
+
+        http.end();               
+        return String(dolarPrice.toDouble());
+        delay(5000);                                   //Sleep for 15 minutes
+}
+
 
 
 
@@ -1992,5 +2099,250 @@ void readTel()//Funçao que faz a leitura do Telegram.
        //  bot.sendSimpleMessage(id, "Comando Invalido", "");
       }
    }
+
+}
+
+
+void newone() {
+static byte hue =0;
+EVERY_N_MILLISECONDS(30) { hue++; }  //30 - speed of hue change
+int x1 = beatsin8 (18, 0, (NUM_COLS-1));
+int x2 = beatsin8 (23, 0, (NUM_COLS-1)); 
+int y1 = beatsin8 (20, 0, (NUM_ROWS-1)); 
+int y2 = beatsin8 (26, 0, (NUM_ROWS-1)); 
+CHSV color = CHSV (hue,255,BRIGHTNESS);
+mydrawLine(x1, y1,  x2, y2, color);
+blur2d (leds,NUM_COLS, NUM_ROWS, 32 );
+FastLED.show();
+} //loop
+ 
+ 
+uint16_t XY2 (uint8_t x, uint8_t y) {
+  return (y * NUM_COLS + x);
+}
+
+void mydrawLine (byte x, byte y, byte x1, byte y1, CHSV color){   // my ugly line draw function )))
+byte xsteps = abs8(x-x1)+1;  
+byte ysteps = abs8(y-y1)+1;
+byte steps =  xsteps >= ysteps? xsteps:ysteps;
+ 
+for (byte i = 1; i <= steps; i++) {
+byte dx = lerp8by8 (x, x1, i*255/steps);
+byte dy = lerp8by8 (y, y1, i*255/steps);
+leds[XY2(dx, dy)] = color;                               // change to += for brightness look
+}
+}
+
+
+
+
+
+
+
+//####Arvore de natal
+
+
+//byte scale;
+void drawPixelXYF_X(float x2, uint16_t y2, const CRGB &color)
+  {
+  //if (x<0 || y<0 || x>((float)WIDTH) || y>((float)HEIGHT)) return;
+
+  // extract the fractional parts and derive their inverses
+  uint8_t xx = (x2 - (int)x) * 255, ix = 255 - xx;
+  // calculate the intensities for each affected pixel
+  uint8_t wu[2] = {ix, xx};
+  // multiply the intensities by the colour, and saturating-add them to the pixels
+  for (int8_t i = 1; i >= 0; i--) {
+      int16_t xn = x2 + (i & 1);
+      CRGB clr = leds[XY(xn, y2)];
+      if(xn>0 && xn<(int)WIDTH-1){
+        clr.r = qadd8(clr.r, (color.r * wu[i]) >> 8);
+        clr.g = qadd8(clr.g, (color.g * wu[i]) >> 8);
+        clr.b = qadd8(clr.b, (color.b * wu[i]) >> 8);
+      } else if(xn==0 || xn==(int)WIDTH-1) {
+        clr.r = qadd8(clr.r, (color.r * 85) >> 8);
+        clr.g = qadd8(clr.g, (color.g * 85) >> 8);
+        clr.b = qadd8(clr.b, (color.b * 85) >> 8);
+      }
+      leds[XY(xn, y2)] = clr;
+  }
+  }
+  
+byte y2[HEIGHT];
+byte x2[WIDTH];
+int fx[WIDTH];
+//byte hue;
+void Radar() {
+  hue++;
+  fadeToBlackBy(leds, NUM_LEDS, 2);
+  scale = beatsin8(1,1,255);
+  for (int i = 0; i < WIDTH-1; i++) {
+  y2[i] = i;
+  fx[i] = beatsin16(speed*5,i*2.5,((WIDTH-1)*5)-i*2.5);
+  drawPixelXYF_X((float)fx[i]/5,y2[i],CHSV(hue+i*scale,255,100));
+}}
+void Wave() {
+  hue++;
+  fadeToBlackBy(leds, NUM_LEDS, 2);
+  scale = beatsin8(1,1,255);
+  for (int i = 0; i < WIDTH-1; i++) {
+  y2[i] = i;
+  fx[i] = beatsin16(i*speed,i*5,((WIDTH-1)*10-2)-(i*5+2));
+  drawPixelXYF_X((float)fx[i]/10,y2[i],CHSV(hue+i*scale,255,100));
+}}
+void Spark(){
+  fadeToBlackBy(leds, NUM_LEDS, 3);
+  blur2d(leds, WIDTH, HEIGHT, 20);
+  for (int i = 1; i < WIDTH-1; i++) {
+  fx[i] = random(i*2,((WIDTH-1)*4)-(i*2));
+  y2[i] = i;
+  if(leds[XY(round(fx[i]/4),y2[i])] == CRGB(0,0,0))
+  drawPixelXYF_X((float)fx[i]/4,y2[i], CHSV(random8(),255,255));}
+}
+void NormalTree() {//by Unknown User https://editor.soulmatelights.com/gallery/552
+  hue++;
+  fadeToBlackBy(leds, NUM_LEDS, 5);
+  scale = beatsin8(1,1,255);
+  for (int i = 0; i < WIDTH-1; i++) {
+  y2[i] = i;
+  x2[i] = beatsin16(i * speed , i * 2,((WIDTH-1)*4-2)-(i*2+2));
+  drawPixelXYF_X(x2[i] / 4, y2[i], random8(10) == 0 ? CHSV(random(0, 255), random8(32, 255), 255) : CHSV(100, 255, 100));
+  }
+}
+
+void draw() {
+  switch (eff) {
+    case 0: Spark(); break;
+    case 1: Wave(); break;
+    case 2: NormalTree(); break;
+    case 3: Radar(); break;
+  }
+}
+
+
+#define LED_COLS    16
+#define LED_ROWS    16
+uint16_t XY8(uint8_t x, uint8_t y) {
+  return (y * LED_ROWS + x);
+}
+
+const uint8_t kkMatrixWidth = LED_COLS;
+const uint8_t kkMatrixHeight = LED_ROWS;
+const uint8_t kBorderWidth = 2;
+
+void dots() {
+  // Apply some blurring to whatever's already on the matrix
+  // Note that we never actually clear the matrix, we just constantly
+  // blur it repeatedly. Since the blurring is 'lossy', there's
+  // an automatic trend toward black -- by design.
+  uint8_t blurAmount = 20; // beatsin8(2, 10, 255);
+  blur2d(leds, kkMatrixWidth, kkMatrixHeight, blurAmount);
+
+  // Use two out-of-sync sine waves
+  uint8_t i = beatsin8(27, kBorderWidth, kkMatrixHeight - kBorderWidth);
+  uint8_t j = beatsin8(41, kBorderWidth, kkMatrixWidth - kBorderWidth);
+
+  // Also calculate some reflections
+  uint8_t ni = (kkMatrixWidth - 1) - i;
+  uint8_t nj = (kkMatrixWidth - 1) - j;
+
+  // The color of each point shifts over time, each at a different speed.
+  uint16_t ms = millis();
+
+  leds[XY8(i, j)] += CHSV(ms / 11, 200, 255);
+  leds[XY8(j, i)] += CHSV(ms / 13, 200, 255);
+  leds[XY8(ni, nj)] += CHSV(ms / 17, 200, 255);
+  leds[XY8(nj, ni)] += CHSV(ms / 29, 200, 255);
+  leds[XY8(i, nj)] += CHSV(ms / 37, 200, 255);
+  leds[XY8(ni, j)] += CHSV(ms / 41, 200, 255);
+
+  FastLED.show();
+}
+
+
+byte i,t,u;
+  void spiralone()
+  {t=millis()/15;
+  u=t*2;
+  for(i=13;i--;)
+  leds[XY9(sin8(t+i*20)>>4,sin8(u+i*20)>>4)].setHue(i*19);
+  blur2d(leds,16,16,32);
+  LEDS.show();
+  }
+  int XY9(byte xx,byte yy)
+  {
+    return(yy*16+xx);
+  }
+
+
+
+
+
+
+  const uint8_t akMatrixWidth = 16;
+const uint8_t akMatrixHeight = 16;
+//uint8_t hue;
+
+const bool    kMatrixSerpentineLayout = true;
+
+uint16_t XYX( uint8_t x, uint8_t y)
+{
+  uint16_t i;
+
+  if( kMatrixSerpentineLayout == false) {
+    i = (y * akMatrixWidth) + x;
+  }
+
+  if( kMatrixSerpentineLayout == true) {
+    if( y & 0x01) {
+      // Odd rows run backwards
+      uint8_t reverseX = (akMatrixWidth - 1) - x;
+      i = (y * akMatrixWidth) + reverseX;
+    } else {
+      // Even rows run forwards
+      i = (y * akMatrixWidth) + x;
+    }
+  }
+
+  return i;
+}
+
+
+#define NUM_LEDS (akMatrixWidth * akMatrixHeight)
+CRGB leds_plus_safety_pixel[ NUM_LEDS + 1];
+//CRGB* const leds( leds_plus_safety_pixel + 1);
+
+uint16_t XYsafe( uint8_t x, uint8_t y)
+{
+  if( x >= akMatrixWidth) return -1;
+  if( y >= akMatrixHeight) return -1;
+  return XYX(x,y);
+}
+
+
+
+
+
+
+void spiral(int offSet, int radMax, int speed){
+  int radius = beatsin8(speed, 0, radMax);;
+  int cX = akMatrixWidth/2;
+  int cY = akMatrixHeight/2;
+
+  int thisX = cX+(floor(radius*sin(millis()*.03+offSet)));
+  int thisY = cY+(floor(radius*cos(millis()*.03+offSet)));
+  leds[XYX(thisX,thisY)] = CHSV( hue++, 255, 255);
+
+  //fadeToBlackBy(leds, NUM_LEDS, 5);
+  FastLED.show();
+}
+
+void spiraltwo()
+{
+    spiral(0,5,10);
+    //spiral(5,5,10);
+    spiral(10,5,50);
+     FastLED.show();
+    fadeToBlackBy(leds, NUM_LEDS, 1);
 
 }

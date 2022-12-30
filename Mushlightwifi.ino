@@ -52,23 +52,22 @@ boolean dataAvailable = false;
 
 
 //CAMERA_MODEL_AI_THINKER
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
-
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define PWDN_GPIO_NUM  32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM  0
+#define SIOD_GPIO_NUM  26
+#define SIOC_GPIO_NUM  27
+#define Y9_GPIO_NUM    35
+#define Y8_GPIO_NUM    34
+#define Y7_GPIO_NUM    39
+#define Y6_GPIO_NUM    36
+#define Y5_GPIO_NUM    21
+#define Y4_GPIO_NUM    19
+#define Y3_GPIO_NUM    18
+#define Y2_GPIO_NUM    5
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM  23
+#define PCLK_GPIO_NUM  22
 
 // Photo File Name to save in SPIFFS
 #define FILE_PHOTO "/photo.jpg"
@@ -81,22 +80,32 @@ bool checkPhoto( fs::FS &fs ) {
 
 }
  
+//##Configura effeito newone
+#define NUM_ROWS 16
+#define NUM_COLS 16
+#define NUM_LEDS NUM_ROWS * NUM_COLS
+byte eff = 0;
+#define WIDTH NUM_COLS
+#define HEIGHT NUM_ROWS
+//#define speed (100/(HEIGHT-4))
+
 
 
 //##########CONFIG TEXTO
 String runningText = "MushLight";
 
 
-//#############Configura LED GPI0
+//#############Configura GPI0
 #define LED_PIN 5
 #define MQ_analog 2
-#define vibra 4
+const int vibra = 34;
+#define AHT 12
 
 int valoratm = 0;//Declara a variável valorldr como inteiro
 int valortemp = 0;//Declara a variável valorldr como inteiro
 int valorhumi = 0;//Declara a variável valorldr como inteiro
 int valorco2 = analogRead(MQ_analog);;//Declara a variável valorldr como inteiro
-int valorvibra = analogRead(vibra);
+int valorvibra;
 int valor_analog = analogRead(MQ_analog);
 
 String ledState;
@@ -213,6 +222,8 @@ unsigned long tempo5 = millis();
 unsigned long tempo6 = millis();
 unsigned long tempo7 = millis();
 unsigned long tempo8 = millis();
+unsigned long tempo9 = millis();
+unsigned long tempo10 = millis();
 
 //######Config sleep
 unsigned long temposleep0;
@@ -508,7 +519,7 @@ bool initWiFi() {
   float t = valor_analog;
 
   if (isnan(t)) {    
-    Serial.println("Failed to read from CO2 sensor!");
+   // Serial.println("Failed to read from CO2 sensor!");
     return "--";
   }
   else {
@@ -521,7 +532,7 @@ String readDHTTemperature() {
   float t = dht.readTemperature();
 
   if (isnan(t)) {    
-    Serial.println("Failed to read from DHT sensor!");
+   // Serial.println("Failed to read from DHT sensor!");
     return "--";
   }
   else {
@@ -534,7 +545,7 @@ String readDHTHumidity() {
   // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
   float h = dht.readHumidity();
   if (isnan(h)) {
-    Serial.println("Failed to read from DHT sensor!");
+    //Serial.println("Failed to read from DHT sensor!");
     return "--";
   }
   else {
@@ -546,7 +557,7 @@ String readDHTHumidity() {
 String readDHTPressao() {
   float p = dht.readHumidity();
   if (isnan(p)) {
-    Serial.println("Failed to read from DHT sensor!");
+   // Serial.println("Failed to read from DHT sensor!");
     return "--";
   }
   else {
@@ -595,7 +606,7 @@ void setup() {
   // Serial port for debugging purposes
 
    pinMode(MQ_analog, INPUT);
-   pinMode(vibra, INPUT);
+  // pinMode(vibra, INPUT);
    pinMode(DHTPIN, INPUT);
 
    Serial.begin(115200);
@@ -634,8 +645,8 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
   Serial.println(ip);
   Serial.println(gateway);
   Serial.println(tokentelegram);
-  Serial.println(clima);
-  Serial.println(logger);
+  //Serial.println(clima);
+ // Serial.println(logger);
 
 
 client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
@@ -783,7 +794,7 @@ FastLED.delay(2000 / velovar);
         writeFile(SPIFFS, loggerPath, "");
      // writeFile(SPIFFS, loggerPath, "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}");
       
-      request->send(SPIFFS, "/index.html", "text/html", false);
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
             // Route to set GPIO state to HIGH
@@ -793,7 +804,7 @@ FastLED.delay(2000 / velovar);
       writeFile(SPIFFS, passPath, "");
       writeFile(SPIFFS, gatewayPath, "");
       writeFile(SPIFFS, tokentelegramPath, "");
-      request->send(SPIFFS, "/index.html", "text/html", false);
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
     
@@ -847,10 +858,45 @@ FastLED.delay(2000 / velovar);
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
                    // Route to set GPIO state to HIGH
-    server.on("/dimmer4", HTTP_GET, [](AsyncWebServerRequest *request) {
-      dimmer4();
+    server.on("/newone", HTTP_GET, [](AsyncWebServerRequest *request) {
+      newone();
+            ledState = "newone";
+
+      request->send(SPIFFS, "/index.html", "text/html", false);
+    });
+                       // Route to set GPIO state to HIGH
+    server.on("/spiralone", HTTP_GET, [](AsyncWebServerRequest *request) {
+                            FastLED.clear();
+
+            ledState = "spiralone";
+
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
+                           // Route to set GPIO state to HIGH
+    server.on("/papainoel", HTTP_GET, [](AsyncWebServerRequest *request) {
+                  FastLED.clear();
+
+            ledState = "papainoel";
+
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+        server.on("/spiraltwo", HTTP_GET, [](AsyncWebServerRequest *request) {
+                  FastLED.clear();
+
+            ledState = "spiraltwo";
+
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+
+                               // Route to set GPIO state to HIGH
+    server.on("/dots", HTTP_GET, [](AsyncWebServerRequest *request) {
+                  FastLED.clear();
+
+            ledState = "dots";
+
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+    
     // Route to set GPIO state to HIGH
     server.on("/green", HTTP_GET, [](AsyncWebServerRequest *request) {
      
@@ -946,6 +992,8 @@ FastLED.delay(2000 / velovar);
     // Route to set GPIO state to HIGH
     server.on("/matrixon", HTTP_GET, [](AsyncWebServerRequest *request) {
           matrixRoutine();
+              FastLED.clear();
+
           ledState = "matrixon";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });   
@@ -1201,6 +1249,21 @@ FastLED.delay(2000 / velovar);
            // Route to set GPIO state to HIGH
         server.on("/btc", HTTP_GET, [](AsyncWebServerRequest *request) {
           ledState = "btc";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+               // Route to set GPIO state to HIGH
+        server.on("/xmr", HTTP_GET, [](AsyncWebServerRequest *request) {
+          ledState = "xmr";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+               // Route to set GPIO state to HIGH
+        server.on("/doge", HTTP_GET, [](AsyncWebServerRequest *request) {
+          ledState = "doge";
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+               // Route to set GPIO state to HIGH
+        server.on("/dolar", HTTP_GET, [](AsyncWebServerRequest *request) {
+          ledState = "dolar";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
     
@@ -1483,7 +1546,8 @@ if (ledState == "ledon") {
     }
     if (ledState == "clock") {
 
- 
+   timeClient.update();
+
     fillString(timeClient.getFormattedTime(), corvar);
     FastLED.show(); // display this frame
     //FastLED.setBrightness(dimmervar);
@@ -1653,6 +1717,39 @@ oceanNoise();
     FastLED.show(); // display this frame
     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     } 
+                if (ledState == "xmr") {
+    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      EEPROM.writeString(5, xmr());
+      tempo5 = millis();
+     
+   }
+   fillString(EEPROM.readString(5),corvar);
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+    } 
+                if (ledState == "doge") {
+    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      EEPROM.writeString(6, doge());
+      tempo5 = millis();
+     
+   }
+   fillString(EEPROM.readString(6),corvar);
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+    } 
+                if (ledState == "dolar") {
+    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      EEPROM.writeString(7, dolar());
+      tempo5 = millis();
+     
+   }
+   fillString(EEPROM.readString(7),corvar);
+    FastLED.show(); // display this frame
+    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+    } 
         if (ledState == "spark") {
     sparklesRoutine();
     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
@@ -1702,15 +1799,12 @@ oceanNoise();
       if (ledState == "juggle") {
  juggle();
   FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
- //FastLED.delay(2000 / veloframe);
              FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
 
    }
    if (ledState == "rainbowgliter") {
  rainbowWithGlitter();
   FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
             FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
 
    }
@@ -1718,8 +1812,55 @@ oceanNoise();
         if (ledState == "runner") {
  runnerRoutine();
   FastLED.show(); // display this frame
-   //     uint16_t veloframe = strtoul(velocidade.c_str(), NULL, 8);
  //FastLED.delay(2000 / veloframe);
+   }
+           if (ledState == "newone") {
+ newone();
+  FastLED.show(); // display this frame
+            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+   }
+              if (ledState == "spiralone") {
+   spiralone();
+  FastLED.show(); // display this frame
+            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+   }
+                 if (ledState == "spiraltwo") {
+   spiraltwo();
+  FastLED.show(); // display this frame
+            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
+   }
+
+              if (ledState == "papainoel") {
+  draw(); 
+
+    FastLED.show(); // display this frame
+
+                if (millis() - tempo10 > 30000)//Faz a verificaçao das funçoes a cada 30min
+   {
+
+  draw();
+
+   if (eff >= 3) {
+      eff = 0;
+    } else {
+      eff += 1;
+    }
+    
+  //static int frame = 0;
+  //if (frame++ % 32 == 0)
+  //  Serial.println(FastLED.getFPS());
+  FastLED.show(); // display this frame
+
+    tempo10 = millis();
+     
+   }
+
+  }
+
+              if (ledState == "dots") {
+   dots();
+  FastLED.show(); // display this frame
+            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
    }
 
     if (ledState == "credito") {
@@ -1772,9 +1913,9 @@ verifica2();
      
    }
 
-     if (millis() - tempo3 > 500)//Faz a verificaçao das funçoes a cada 30min
+     if (millis() - tempo3 > 100)//Faz a verificaçao das funçoes a cada 30min
    {
-      //readSoundSensor();
+      readVibra();
       tempo3 = millis();
      
    }
