@@ -1345,21 +1345,125 @@ void swirlRoutine() {
   }
 }
 
+//tAKE A PICTURIII
 
 
+// Check if photo capture was successful
+bool checkPhoto( fs::FS &fs ) {
+  File f_pic = fs.open( FILE_PHOTO );
+  unsigned int pic_sz = f_pic.size();
+  return ( pic_sz > 100 );
+
+}
+ 
+
+//SALVA NO SDCARD
 
 
+void capturePhotoSaveSpiffsAndSD( void ) {
+  //initMicroSDCard();
+
+Serial.println(" ");
+//camera_fb_t * fb = NULL; // pointer
+bool ok = 0; // Boolean indicating if the picture has been taken correctly
+
+
+do {
+// Take a photo with the camera
+Serial.println(" ");
+
+Serial.println("--------------- Taking a photo --------------");
+// flash the led so you know a photo was taken
+digitalWrite(LED_BUILTIN, HIGH);
+Serial.println("LED turned ON");
+
+fb = esp_camera_fb_get();
+delay(500);
+
+digitalWrite(LED_BUILTIN, LOW);
+Serial.println("LED turned OFF");
+if (!fb) {
+Serial.println("Camera capture failed");
+return;
+}else {
+Serial.println("Camera capture success");
+}
+} while (!fb); // loop until photo taken
+configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+
+//get time for file name format and make file name
+struct tm timeinfo;
+char now[20];
+getLocalTime(&timeinfo);
+strftime(now, 20, "%Y%m%d_%H%M%S", &timeinfo); // Format Date & Time
+String path = "/" + String(now) +".jpg";
+lastPhoto = path;
+Serial.printf("SD Picture file name: %s\n", path.c_str());
+
+takeNewPhoto = false;
+// extra SD CARD write - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Serial.println(" ");
+Serial.println(" Saving to SD card ");
+// Path where new picture will be saved in SD Card
+
+// Save picture to microSD card
+
+if(!SD_MMC.begin()){
+fs::FS &fs = SD_MMC;
+File file2 = SD_MMC.open(path.c_str(),FILE_WRITE);
+
+if(!file2){
+Serial.println("Failed to open file in writing mode");
+}
+else {
+Serial.println("Success open file in writing mode");
+file2.write(fb->buf, fb->len); // payload (image), payload length
+Serial.printf(" Saved: %s\n", path.c_str());
+//listDirectory(SD_MMC);
+}
+
+file2.close();
+}
+
+// listDirSD(SD_MMC, "/", 0); // list files in SD card in serial
+//unsigned long totalSpaceSD = SD_MMC.totalBytes()/ (1024 * 1024);
+//unsigned long usedSpaceSD = SD_MMC.usedBytes() / (1024);
+//int percentUsedSpaceSD = round(((usedSpaceSD *1024)/ totalSpaceSD)*100);
+//Serial.println("totalSpaceSD MB: "+ String(totalSpaceSD));
+//Serial.println("usedSpaceSD KB: "+ String(usedSpaceSD));
+//Serial.println("percentUsedSpaceSD: "+ String(percentUsedSpaceSD));
+
+// Could write code similar to SPIFFS to delete old files if SD card becomes full, but did not because
+// if CAM takes 12 photo per day there is enough space on 32G SD card for 50 years
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+//return the frame buffer back to the driver for reuse
+
+esp_camera_fb_return(fb);
+    // check if file has been correctly saved in SPIFFS
+ 
+ 
+}
 
 // Capture Photo and Save it to SPIFFS
 void capturePhotoSaveSpiffs( void ) {
-  camera_fb_t * fb = NULL; // pointer
+  //camera_fb_t * fb = NULL; // pointer
   bool ok = 0; // Boolean indicating if the picture has been taken correctly
 
   do {
     // Take a photo with the camera
     Serial.println("Taking a photo...");
 
-    fb = esp_camera_fb_get();
+digitalWrite(LED_BUILTIN, HIGH);
+Serial.println("LED turned ON");
+
+
+fb = esp_camera_fb_get();
+delay(500);
+
+digitalWrite(LED_BUILTIN, LOW);
+Serial.println("LED turned OFF");
     if (!fb) {
       Serial.println("Camera capture failed");
       return;
@@ -1383,6 +1487,7 @@ void capturePhotoSaveSpiffs( void ) {
     }
     // Close the file
     file.close();
+    delay(300);
     esp_camera_fb_return(fb);
 
     // check if file has been correctly saved in SPIFFS
@@ -1392,10 +1497,121 @@ void capturePhotoSaveSpiffs( void ) {
 
 
 
-
+//################Send foto telegram
+bool isMoreDataAvailable();
+byte getNextByte();
+File filey = SPIFFS.open(FILE_PHOTO, "r");
 
 //################Send foto telegram
+////////////////////////////////  manda foto usando SPIFFS
+
 bool isMoreDataAvailable()
+{
+  return filey.available();
+}
+
+byte getNextByte()
+{  return  filey.read();
+}
+///////////////////////////////
+
+
+
+
+void  sendPhotoTelegram()
+{
+ 
+         File filey = SPIFFS.open(FILE_PHOTO, "r");
+
+    int newmsgX = bot.getUpdates(bot.last_message_received );
+    idX = bot.messages[0].chat_id;//Armazenara o ID do Usuario à Váriavel.
+
+
+
+ if (filey)
+  {
+    Serial.println(FILE_PHOTO);
+    Serial.println("....");
+    Serial.println(filey.read());
+    Serial.println(filey.size());
+    
+    
+
+    //Content type for PNG image/png
+ String sent =     bot.sendPhotoByBinary(idX, "image/jpeg", filey.size(),
+                                        isMoreDataAvailable,
+                                        getNextByte, nullptr, nullptr);
+
+  if (sent)
+    {
+      Serial.println("foto enviada ao telegram");
+        bot.sendMessage(id, "Take a picture", ""); 
+         filey.close();
+
+    }
+    else
+    {
+      Serial.println("n enviado");
+    }
+
+
+  }
+  else
+  {
+    // if the file didn't open, print an error:
+    Serial.println("error opening photo");
+                bot.sendMessage(id, "n fique triste tente denovo erro ao acessar o arquivo", "");      
+ }
+
+      
+    filey.close();
+      Serial.println("done funcao , ultima foto enviada do SPIFFS");
+ 
+}
+
+
+
+
+
+
+
+
+//////Send camera to telegram
+
+
+bool isMoreDataAvailablex();
+byte *getNextBuffer();
+int getNextBufferLen();
+
+bool dataAvailable = false;
+void camtelegram( void ){
+
+      // Take Picture with Camera
+
+      fb = esp_camera_fb_get();
+
+
+      if (!fb)
+      {
+        Serial.println("Camera capture failed");
+        bot.sendMessage(id, "Camera capture failed", "");
+        return;
+      }
+      dataAvailable = true;
+      Serial.println("Sending cam");
+      bot.sendPhotoByBinary(id, "image/jpeg", fb->len,
+                            isMoreDataAvailablex, nullptr,
+                            getNextBuffer, getNextBufferLen);
+
+      Serial.println("mais nada com a cam!");
+
+      esp_camera_fb_return(fb);
+
+
+}
+
+
+bool isMoreDataAvailablex()
 {
   if (dataAvailable)
   {
@@ -1409,10 +1625,7 @@ bool isMoreDataAvailable()
 }
 
 byte *getNextBuffer()
-{
-   camera_fb_t * fb = NULL; 
-      // Take Picture with Camera
-      fb = esp_camera_fb_get();
+{ 
   if (fb)
   {
     return fb->buf;
@@ -1425,9 +1638,6 @@ byte *getNextBuffer()
 
 int getNextBufferLen()
 {
-   camera_fb_t * fb = NULL; 
-      // Take Picture with Camera
-      fb = esp_camera_fb_get();
   if (fb)
   {
     return fb->len;
@@ -1438,58 +1648,14 @@ int getNextBufferLen()
   }
 }
 
-void  sendPhotoTelegram()
-{
-  int newmsg = bot.getUpdates(bot.last_message_received + 1);
-  Serial.println("Sorria vc esta sendo filmado");
-  Serial.println(String(newmsg));
-
-  for (int i = 0; i < newmsg; i++)
-  {
-    String chat_id = String(bot.messages[i].chat_id);
-    String text = bot.messages[i].text;
-
-    String from_name = bot.messages[i].from_name;
-    if (from_name == "")
-      from_name = "Guest";
-     camera_fb_t * fb = NULL; 
-      // Take Picture with Camera
-      fb = esp_camera_fb_get();
-      if (!fb)
-      {
-        Serial.println("Camera capture failed");
-        bot.sendMessage(chat_id, "Nao fuqe triste, falhou, tente denovo", "");
-        return;
-      }
-      dataAvailable = true;
-      Serial.println("Enviando");
-      bot.sendPhotoByBinary(chat_id, "image/jpeg", fb->len,
-                            isMoreDataAvailable, nullptr,
-                            getNextBuffer, getNextBufferLen);
-      bot.sendMessage(chat_id, "Sorria vc esta sendo filmado", "");
-
-
-      Serial.println("done!");
-
-      esp_camera_fb_return(fb);
-    
-
-  
-  
-
-
-}}
-
-
-
 
 
 
 // Sound sensor code
 void readVibra(){
    valorvibra = analogRead(vibra);
-Serial.println(valorvibra);
-Serial.println("||");
+//Serial.println(valorvibra);
+//Serial.println("||");
 //Serial.println(analogRead(vibra));
 
 
@@ -1583,7 +1749,7 @@ if (color_counter == 0)
 
 void verifica(){
        takeNewPhoto = true;
-       sendPhotoTelegram();
+    //   sendPhotoTelegram();
       
         time_t now = time(nullptr);
           time_now = String(ctime(&now)).substring(0,24);
@@ -1652,7 +1818,7 @@ const String site = "https://www.bitstamp.net/api/v2/ticker/shibusd";
 
 DynamicJsonDocument doc4(2000);
     deserializeJson(doc4, http.getString());
-      JsonObject obj = doc4.as<JsonObject>();
+    //  JsonObject obj = doc4.as<JsonObject>();
 
     
         Serial.print("HTTP Status Code: ");
@@ -1690,7 +1856,7 @@ const String site = "https://www.bitstamp.net/api/v2/ticker/ltcusd";
 
 DynamicJsonDocument doc3(2000);
     deserializeJson(doc3, http.getString());
-      JsonObject obj = doc3.as<JsonObject>();
+   //   JsonObject obj = doc3.as<JsonObject>();
 
     
         Serial.print("HTTP Status Code: ");
@@ -1724,8 +1890,6 @@ DynamicJsonDocument doc3(2000);
 String eth(){
 //const String site = "https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD&e=Coinbase";
 const String site = "https://www.bitstamp.net/api/v2/ticker/ethusd";
- 
-if (ledState == "eth") {
    
      http.begin(site);
      int httpCode = http.GET(); 
@@ -1752,7 +1916,7 @@ Serial.println(ETHUSDPrice.toDouble());
         return ETHUSDPrice;
         http.end();  
         delay(5000);                                   
-}}
+}
 
 
 
@@ -1978,6 +2142,7 @@ void readTel()//Funçao que faz a leitura do Telegram.
       //bot.messages[i].type == "channel_post";
 
   
+  
       if (text.indexOf("ledon") > -1)//Caso o texto recebido contenha "ON"
       {
          ledon();
@@ -2059,11 +2224,25 @@ void readTel()//Funçao que faz a leitura do Telegram.
 
             else if (text.indexOf("foto") > -1)//Caso o texto recebido contenha "OFF"
       {
-      //  NeoFade(100);
-        sendPhotoTelegram();
-        bot.sendMessage(id, "Take a picture", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+        camtelegram();
+       
+        bot.sendMessage(id, "Sorria!!", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
+                  else if (text.indexOf("sd") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        cam = "on";
+        sendPhotoTelegram();
+       
 
+//        sendfoto();
+        bot.sendMessage(id, "foto sd", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+           else if (text.indexOf("restart") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        ESP.restart();
+       
+        bot.sendMessage(id, "reiniciando esp", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
       
       else if(text.indexOf("start") > -1)//Caso o texto recebido contenha "START"
       {
@@ -2308,7 +2487,7 @@ uint16_t XYX( uint8_t x, uint8_t y)
 }
 
 
-#define NUM_LEDS (akMatrixWidth * akMatrixHeight)
+//#define NUM_LEDS (akMatrixWidth * akMatrixHeight)
 CRGB leds_plus_safety_pixel[ NUM_LEDS + 1];
 //CRGB* const leds( leds_plus_safety_pixel + 1);
 

@@ -7,7 +7,7 @@
 
 #define BLOCKS_H 4        // высота кучи блоков
 #define LINE_NUM 8        // количество "линий" с блоками других уровней
-#define LINE_MAX 4        // макс. длина линии
+#define LINE_MAXX 4        // макс. длина линии
 
 // цвета блоков по крутости
 #define BLOCK_COLOR_1 CRGB::Aqua
@@ -189,10 +189,10 @@ void generateBlocks() {
     }
   }
   for (byte k = 0; k < LINE_NUM; k++) {
-    byte newPosX = random(0, WIDTH - 1 - LINE_MAX);
+    byte newPosX = random(0, WIDTH - 1 - LINE_MAXX);
     byte newPosY = random(HEIGHT - BLOCKS_H, HEIGHT);
     byte newColor = random(0, 3);
-    for (byte i = newPosX; i < newPosX + LINE_MAX; i++) {
+    for (byte i = newPosX; i < newPosX + LINE_MAXX; i++) {
       switch (newColor) {
         case 0: drawPixelXY(i, newPosY, 0);
           break;

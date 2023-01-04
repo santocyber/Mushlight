@@ -1,9 +1,16 @@
 //Codigo disponivel no github desenvolvido por @SantoCyber
-
+//#define _DISABLE_TLS_
 #include <WiFi.h>
+#include "esp_camera.h"
+#include "img_converters.h"
+#include "Arduino.h"
+#include "soc/soc.h"           // Disable brownour problems
+#include "soc/rtc_cntl_reg.h"  // Disable brownour problems
+#include "driver/rtc_io.h"
+#include <StringArray.h>
 #include <Wire.h>
 #include <ESPAsyncWebServer.h>
-#include "SPIFFS.h"
+#include <SPIFFS.h>
 #include "FastLED.h"
 #include <NTPClient.h>
 #include "fonts.h"
@@ -20,17 +27,16 @@
 #include "bitmap9.h"
 #include <DHT.h>
 #include <FS.h>
-#include "esp_camera.h"
 #include <WiFiClientSecure.h>
 #include <time.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include "EEPROM.h"
+#include "SD_MMC.h"
 
 
 //#####Configura data logger
-
-String    webpage,time_now,log_time,lastcall,time_str, DataFile = "datalog.txt";
+String    time_now;
 #define TZone -3
 
 //####Configura contador
@@ -48,7 +54,22 @@ const int httpsPort = 443;
 
 //##########Configura cam
 boolean takeNewPhoto = false;
-boolean dataAvailable = false;
+//boolean dataAvailable = false;
+
+// Keep track of number of pictures
+unsigned int pictureNumber = 0;
+String path = "";
+String lastPhoto = "";
+String cam;
+
+camera_fb_t *fb = NULL;
+
+
+
+const long gmtOffset_sec = 3600 * 10;
+const int daylightOffset_sec = 3600;
+// NTP Server - this is to put a time stanp in the file name
+const char* ntpServer = "pool.ntp.org";
 
 
 //CAMERA_MODEL_AI_THINKER
@@ -70,25 +91,7 @@ boolean dataAvailable = false;
 #define PCLK_GPIO_NUM  22
 
 // Photo File Name to save in SPIFFS
-#define FILE_PHOTO "/photo.jpg"
-
-// Check if photo capture was successful
-bool checkPhoto( fs::FS &fs ) {
-  File f_pic = fs.open( FILE_PHOTO );
-  unsigned int pic_sz = f_pic.size();
-  return ( pic_sz > 100 );
-
-}
- 
-//##Configura effeito newone
-#define NUM_ROWS 16
-#define NUM_COLS 16
-#define NUM_LEDS NUM_ROWS * NUM_COLS
-byte eff = 0;
-#define WIDTH NUM_COLS
-#define HEIGHT NUM_ROWS
-//#define speed (100/(HEIGHT-4))
-
+//#define FILE_PHOTO "/photo.jpg"
 
 
 //##########CONFIG TEXTO
@@ -96,10 +99,14 @@ String runningText = "MushLight";
 
 
 //#############Configura GPI0
-#define LED_PIN 5
-#define MQ_analog 2
-const int vibra = 34;
-#define AHT 12
+//aithinker port free 2, 12, 13, 14, and 15.
+#define LED_BUILTIN 4
+#define LED_PIN 15
+#define MQ_analog 14
+const int vibra = 12;
+//#define AHT 2
+#define DHTPIN 2     // Digital pin connected to the DHT sensor
+
 
 int valoratm = 0;//Declara a variável valorldr como inteiro
 int valortemp = 0;//Declara a variável valorldr como inteiro
@@ -115,28 +122,12 @@ int color_counter = 0;
 
 
 //############CONFIG TEMP HUMI PRESSAO
-#define DHTPIN 15     // Digital pin connected to the DHT sensor
 #define DHTTYPE    DHT11     // DHT 11
 DHT dht(DHTPIN, DHTTYPE);
 
 
 
-//############Configura led
-//http://fastled.io/docs/3.1/struct_c_r_g_b.html
-
-
-#define WIDTH 16
-#define HEIGHT 16
-#define SEGMENTS 1
-
-
-
-#define NUM_LEDS WIDTH * HEIGHT * SEGMENTS
-#define CHIPSET WS2811
-CRGB leds[NUM_LEDS];
-
-
-
+ 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -171,10 +162,11 @@ String text;
 String velocidade = "60";
 String dimmer = "250";
 //String bot;
-String id, welcome, from_name;//Váriaveis para armazenamento do ID e TEXTO gerado pelo Usuario
+String id,idX, welcome, from_name;//Váriaveis para armazenamento do ID e TEXTO gerado pelo Usuario
 String msg;
 String readings;
 String logger;
+String photo;
 
 
 // File paths to save input values permanently
@@ -185,6 +177,7 @@ const char* gatewayPath = "/gateway.txt";
 const char* tokentelegramPath = "/tokentelegram.txt";
 const char* climaPath = "/clima.txt";
 const char* loggerPath = "/data.txt";
+const char* FILE_PHOTO = "/photo.jpg";
 
 
 
@@ -248,6 +241,8 @@ boolean AUTOPLAY = 1;
 #define USE_SNAKE 1        
 #define USE_TETRIS 1 
 #define USE_ARKAN  1 
+#define CAM 1
+
 
 int scrollSpeed = D_TEXT_SPEED;    // скорость прокрутки текста бегущей строки
 int gameSpeed = DEMO_GAME_SPEED;   // скорость в играх
@@ -261,8 +256,8 @@ uint32_t autoplayTimer;
 //##################### Configura voids
 
 #define SCORE_SIZE 0  
-#define FASTLED_INTERRUPT_RETRY_COUNT 0
-#define FASTLED_ALLOW_INTERRUPTS 0
+//#define FASTLED_INTERRUPT_RETRY_COUNT 0
+//#define FASTLED_ALLOW_INTERRUPTS 0
 #define BRIGHTNESS 255
 #define CURRENT_LIMIT 2000
 
@@ -279,9 +274,9 @@ uint32_t autoplayTimer;
 #define _WIDTH WIDTH
 #define THIS_X x
 #define THIS_Y y
-#define SNOW_DENSE 20
+//#define SNOW_DENSE 20
 #define HUE_ADD 0
-#define SPARKLES 50
+//#define SPARKLES 50
 #define COOLING  120
 
 // SPARKING: What chance (out of 255) is there that a new spark will be lit?
@@ -289,6 +284,33 @@ uint32_t autoplayTimer;
 // Default 120, suggested range 50-200.
 #define SPARKING 200
 #define FRAMES_PER_SECOND velovar
+
+
+
+//############Configura led
+//http://fastled.io/docs/3.1/struct_c_r_g_b.html
+
+
+#define NUM_LEDS WIDTH * HEIGHT * SEGMENTS
+#define CHIPSET WS2811
+CRGB leds[NUM_LEDS];
+
+
+//##Configura effeito newone
+#define NUM_ROWS 16
+#define NUM_COLS 16
+//#define NUM_LEDS NUM_ROWS * NUM_COLS
+byte eff = 0;
+//#define WIDTH NUM_COLS
+//#define HEIGHT NUM_ROWS
+//#define speed (100/(HEIGHT-4))
+
+
+
+
+
+
+
 bool gReverseDirection = false;
 unsigned char matrixValue[8][16];
 unsigned char line[WIDTH];
@@ -379,7 +401,7 @@ String readTotal(fs::FS &fs, const char * path){
     break;     
   }
     fileContent.trim();
-  fileContent.length() - 1;
+ // fileContent.length() - 1;
 
   return fileContent;
 }
@@ -424,17 +446,17 @@ void writeFile(fs::FS &fs, const char * path, const char * message){
 
 
 // Adicinando no arquivo append file to SPIFFS
-bool addFile(fs::FS &fs, const char * path, const char * message){
+void addFile(fs::FS &fs, const char * path, const char * message){
   Serial.printf("ADD file: %s\r\n", path);
 
   File file = fs.open(path, FILE_APPEND);
   if(!file){
     Serial.println("- failed to open file for writing");
-    return false;
+    return;
   }
   if(file.print(message)){
     Serial.println("- file adicionado");
-    return true;
+    return;
   } else {
     Serial.println("- frite failed");
   }
@@ -462,9 +484,6 @@ UniversalTelegramBot bot(tokentele, client);
 
 
 
-
-
-
 // Initialize WiFi
 bool initWiFi() {
   if(ssid=="" || ip==""){
@@ -485,12 +504,11 @@ bool initWiFi() {
   
   //##################Configura servicoes q precisa de conexao
   
- // UniversalTelegramBot bot(tokentelegram.c_str(), client);
     timeClient.begin();
     timeClient.update();
-    readTel();
-    verifica();
-    verifica2();
+    //readTel();
+    //verifica();
+    //verifica2();
     StartTime();
 
 
@@ -596,7 +614,85 @@ String processor(const String& var){
 }
 
 
+bool setupCamera()
+{
+  camera_config_t config;
 
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sccb_sda = SIOD_GPIO_NUM;
+  config.pin_sccb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
+  
+  config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
+config.fb_location = CAMERA_FB_IN_PSRAM;
+
+const int pwmfreq = 50000;     // 50K pwm frequency
+const int pwmresolution = 9;   // duty cycle bit range
+ledcSetup(config.ledc_channel, pwmfreq, pwmresolution);  // configure LED PWM channel
+ledcAttachPin(4, config.ledc_channel);     
+
+
+  //init with high specs to pre-allocate larger buffers
+  if (psramFound())
+  {
+    config.frame_size = FRAMESIZE_CIF; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
+    config.jpeg_quality = 10;
+    config.fb_count = 2;
+  }
+  else
+  {
+    config.frame_size = FRAMESIZE_QVGA;
+    config.jpeg_quality = 12;
+    config.fb_count = 1;
+  }
+
+#if defined(CAMERA_MODEL_ESP_EYE)
+  pinMode(13, INPUT_PULLUP);
+  pinMode(14, INPUT_PULLUP);
+#endif
+
+  // camera init
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK)
+  {
+    Serial.printf("Camera init failed with error 0x%x", err);
+    return false;
+  }
+
+  sensor_t *s = esp_camera_sensor_get();
+  //initial sensors are flipped vertically and colors are a bit saturated
+  if (s->id.PID == OV3660_PID)
+  {
+    s->set_vflip(s, 1);       //flip it back
+    s->set_brightness(s, 1);  //up the blightness just a bit
+    s->set_saturation(s, -2); //lower the saturation
+  }
+  //drop down frame size for higher initial frame rate
+  s->set_framesize(s, FRAMESIZE_QVGA);
+
+#if defined(CAMERA_MODEL_M5STACK_WIDE)
+  s->set_vflip(s, 1);
+  s->set_hmirror(s, 1);
+#endif
+
+  return true;
+}
 
 
 //######################## SETUP
@@ -604,7 +700,7 @@ String processor(const String& var){
 
 void setup() {
   // Serial port for debugging purposes
-
+  pinMode(33, OUTPUT);
    pinMode(MQ_analog, INPUT);
   // pinMode(vibra, INPUT);
    pinMode(DHTPIN, INPUT);
@@ -614,16 +710,51 @@ void setup() {
 
   EEPROM.begin(512);
 
+
+
+
+ 
+      // Turn off the flash
+      pinMode(4, INPUT);
+   //   digitalWrite(4, LOW);
+      //rtc_gpio_hold_dis(GPIO_NUM_4);
+
+
+Serial.setDebugOutput(true);
+  Serial.println();
+
+// Turn-off the 'brownout detector'
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+ 
+  // Camera init
+if (!setupCamera())
+  {
+    Serial.println("Camera Setup Failed!");
+    while (true)
+    {
+      delay(100);
+    }
+  }
+
+
+ //init telegram cert
+
+client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+//client->setTimeout(4000);
+
+client.setTimeout(30000);
+
  
 //########### LED
 
 FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
   FastLED.setBrightness( BRIGHTNESS );
 
-  if (CURRENT_LIMIT > 0) FastLED.setMaxPowerInVoltsAndMilliamps(5, CURRENT_LIMIT);
+ // if (CURRENT_LIMIT > 0) FastLED.setMaxPowerInVoltsAndMilliamps(5, CURRENT_LIMIT);
   FastLED.clear();
   FastLED.show();
-  randomSeed(analogRead(0) + analogRead(1));
+  //randomSeed(analogRead(0) + analogRead(1));
 
 
    
@@ -639,6 +770,7 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
   tokentelegram = readFile (SPIFFS, tokentelegramPath);
   clima = readFile (SPIFFS, climaPath);
   logger = readTotal (SPIFFS, loggerPath);
+  photo = readFile (SPIFFS, FILE_PHOTO);
 
   Serial.println(ssid);
   Serial.println(pass);
@@ -649,13 +781,12 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
  // Serial.println(logger);
 
 
-client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
 
 
 
   if(initWiFi()) {
 
- 
+
        
 
     // Route for root / web page
@@ -739,9 +870,9 @@ client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.tel
     }}}
       
 uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
-uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
+//uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
-long settemposleep = strtoul(sleeptime.c_str(),NULL, 1000);
+//long settemposleep = strtoul(sleeptime.c_str(),NULL, 1000);
 
 FastLED.setBrightness(dimmervar);
 FastLED.delay(2000 / velovar);
@@ -1301,8 +1432,19 @@ FastLED.delay(2000 / velovar);
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
       
+
+            server.on("/restart", HTTP_GET, [](AsyncWebServerRequest * request) {
+ESP.restart();
+//    request->send_P(200, "text/plain", "Taking Photo");
+   // request->send(SPIFFS, "/", "text/html", false, processor);
+  });
       
       
+            server.on("/sd", HTTP_GET, [](AsyncWebServerRequest * request) {
+
+//    request->send_P(200, "text/plain", "Taking Photo");
+    request->send(SD_MMC, "/*", "text/html", false, processor);
+  });
       
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
     takeNewPhoto = true;
@@ -1316,14 +1458,14 @@ FastLED.delay(2000 / velovar);
 
     configureEvents();
     server.begin();
-    //uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
-//uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
 //FastLED.setBrightness(dimmervar);
 //FastLED.delay(2000 / velovar);
 //scrollTimer.setInterval(velovar);
 
-uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
-uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
+
+
+//uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
+//uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
 if (millis() - tempo7 > 1000)//Faz a verificaçao das funçoes a cada 2 Segundos
     {
@@ -1409,6 +1551,39 @@ FastLED.delay(2000 / velovar);
     });
     server.begin();
   }
+
+
+
+
+
+
+//initMicroSDCard();
+
+    if(!SD_MMC.begin()){
+        Serial.println("Card Mount Failed");
+        //return;
+    }
+    uint8_t cardType = SD_MMC.cardType();
+
+    if(cardType == CARD_NONE){
+        Serial.println("No SD_MMC card attached");
+        //return;
+    }
+
+    Serial.print("SD_MMC Card Type: ");
+    if(cardType == CARD_MMC){
+        Serial.println("MMC");
+    } else if(cardType == CARD_SD){
+        Serial.println("SDSC");
+    } else if(cardType == CARD_SDHC){
+        Serial.println("SDHC");
+    } else {
+        Serial.println("UNKNOWN");
+    }
+
+    uint64_t cardSize = SD_MMC.cardSize() / (1024 * 1024);
+    Serial.printf("SD_MMC Card Size: %lluMB\n", cardSize);
+
 
 
 }
@@ -1869,10 +2044,6 @@ oceanNoise();
     }
 
     
-    if (takeNewPhoto) {
-    capturePhotoSaveSpiffs();
-    takeNewPhoto = false;
-  }
 
 
  //##Loop paralelo
@@ -1898,9 +2069,9 @@ verifica2();
 
 
 //#####Configura  loop telegram 
-   if (millis() - tempo > 30000)//Faz a verificaçao das funçoes a cada 2 Segundos
+   if (millis() - tempo > 2000)//Faz a verificaçao das funçoes a cada 2 Segundos
     {
-     // connect();//Funçao para verificar se ainda há conexao
+      connect();//Funçao para verificar se ainda há conexao
       readTel();//Funçao para ler o telegram
       tempo = millis();//Reseta o tempo
      
@@ -1915,11 +2086,34 @@ verifica2();
 
      if (millis() - tempo3 > 100)//Faz a verificaçao das funçoes a cada 30min
    {
-      readVibra();
+      //readVibra();
       tempo3 = millis();
      
    }
 
+  digitalWrite(33, LOW);
+  
+    if (takeNewPhoto) {
+    delay(500);
+    capturePhotoSaveSpiffs();
+    delay(500);
+    capturePhotoSaveSpiffsAndSD();
+    delay(500);
+  //  sendPhotoTelegram();
+   // delay(500);
+     // sendfoto();
+   // delay(500);
+    takeNewPhoto = false;
+  }
+  delay(50);
 
+ 
+if (cam == "on"){
+  
+   File filey = SPIFFS.open(FILE_PHOTO, "r");
+Serial.println("lendo arquivo");
+delay(500);
+cam = "off";
+  }
   
 }
