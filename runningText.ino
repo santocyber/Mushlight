@@ -4,20 +4,22 @@
 #define MIRR_V 0          // отразить текст по вертикали (0 / 1)
 #define MIRR_H 0          // отразить текст по горизонтали (0 / 1)
 
-#define TEXT_HEIGHT 0     // высота, на которой бежит текст (от низа матрицы)
+#define TEXT_HEIGHT -2     // высота, на которой бежит текст (от низа матрицы)
 #define LET_WIDTH 5       // ширина буквы шрифта
-#define LET_HEIGHT 8      // высота буквы шрифта
-#define SPACE 1           // пробел
+#define LET_HEIGHT 7      // высота буквы шрифта
+#define SPACE 0           // пробел
 
+#define WIDTHX 8       // ширина буквы шрифта
+#define HEIGHTX 8
 // --------------------- ДЛЯ РАЗРАБОТЧИКОВ ----------------------
 //boolean offset = 1;
 
-int offset = WIDTH;
+int offset = WIDTHX;
 
 
 void fillString(String text, uint32_t color) {
   if (loadingFlag) {
-    offset = WIDTH;   // перемотка в правый край
+    offset = WIDTHX;   // перемотка в правый край
     loadingFlag = false;    
   
     fullTextFlag = false;
@@ -39,11 +41,20 @@ void fillString(String text, uint32_t color) {
 
     offset--;
     if (offset < -j * (LET_WIDTH + SPACE)) {    // строка убежала
-      offset = WIDTH + 3;
+      offset = WIDTHX + 3;
       fullTextFlag = true;
     }
             
     FastLED.show();
+  }
+}
+
+
+uint16_t getPixelNumber2(int8_t x, int8_t y) {
+  if ((THIS_Y % 2 == 0) || MATRIX_TYPE) {               // если чётная строка
+    return (THIS_Y * WIDTHX + THIS_X);
+  } else {                                              // если нечётная строка
+    return (THIS_Y * WIDTHX + WIDTHX - THIS_X - 1);
   }
 }
 
@@ -58,9 +69,9 @@ void drawLetter(uint8_t index, uint8_t letter, int16_t offset, uint32_t color) {
   else if (color == 2) letterColor = CHSV(byte(index * 30), 255, 255);
   else letterColor = color;
 
-  if (offset < -LET_WIDTH || offset > WIDTH) return;
+  if (offset < -LET_WIDTH || offset > WIDTHX) return;
   if (offset < 0) start_pos = -offset;
-  if (offset > (WIDTH - LET_WIDTH)) finish_pos = WIDTH - offset;
+  if (offset > (WIDTHX - LET_WIDTH)) finish_pos = WIDTHX - offset;
 
   for (byte i = start_pos; i < finish_pos; i++) {
     int thisByte;
@@ -74,7 +85,7 @@ void drawLetter(uint8_t index, uint8_t letter, int16_t offset, uint32_t color) {
       else thisBit = thisByte & (1 << (LH - 1 - j));
 
       // рисуем столбец (i - горизонтальная позиция, j - вертикальная)
-      if (thisBit) leds[getPixelNumber(offset + i, offset_y + TEXT_HEIGHT + j)] = letterColor;
+      if (thisBit) leds[getPixelNumber2(offset + i, offset_y + TEXT_HEIGHT + j)] = letterColor;
     }
   }
 }
