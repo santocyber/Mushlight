@@ -16,6 +16,16 @@ void readTel()//Funçao que faz a leitura do Telegram.
       from_name = bot.messages[i].from_name;
       //bot.messages[i].type == "channel_post";
 
+    Serial.printf("\nGot a message %s\n", text);
+
+   
+    if (from_name == "") from_name = "Cade o nick?";
+
+    String hi = "Vc disse isso mesmo? Vou executar! ";
+    hi += text;
+    bot.sendMessage(id, hi, "Markdown");
+
+
   
   
       if (text.indexOf("ledon") > -1)//Caso o texto recebido contenha "ON"
@@ -80,6 +90,33 @@ void readTel()//Funçao que faz a leitura do Telegram.
         
         bot.sendMessage(id,ltc(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }  
+//######Comando telegram
+      else if (text.indexOf("xmr") > -1)//Caso o texto recebido contenha "OFF"
+      {
+       ledState = "xmr";
+         EEPROM.writeString(1, xmr());
+        
+        bot.sendMessage(id,xmr(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }     
+      
+//######Comando telegram
+      else if (text.indexOf("eth") > -1)//Caso o texto recebido contenha "OFF"
+      {
+       ledState = "eth";
+         EEPROM.writeString(1, eth());
+        
+        bot.sendMessage(id,eth(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }     
+      
+//######Comando telegram
+      else if (text.indexOf("doge") > -1)//Caso o texto recebido contenha "OFF"
+      {
+       ledState = "doge";
+         EEPROM.writeString(1, doge());
+        
+        bot.sendMessage(id,eth(), "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }     
+      
       //######Comando telegram
       else if (text.indexOf("clock") > -1)//Caso o texto recebido contenha "OFF"
       {
@@ -121,7 +158,37 @@ void readTel()//Funçao que faz a leitura do Telegram.
        
         bot.sendMessage(id, "reiniciando esp", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
-      
+
+       else if (text.indexOf("status") > -1)//Caso o texto recebido contenha "OFF"
+      {
+    welcome = "Nome do bot:\n";
+    welcome +=  nomedobot.c_str();
+    welcome += "\n";
+    welcome += "Tempo ping:\n";
+Ping.ping("google.com");
+    welcome +=  Ping.averageTime();
+    welcome += "ms";
+    welcome += "\nRemaining free mem:";
+    welcome += ESP.getFreeHeap();
+    welcome += "\n";
+    welcome += "Millis: ";
+    welcome += millis();
+    welcome += "\n";
+    welcome += "Nivel de sinal WIFI: ";
+    welcome += WiFi.RSSI();
+    welcome += "\n";
+    welcome += "IP Local: ";
+    welcome += WiFi.localIP().toString();
+    welcome += "\n";
+    welcome += "Numero de Falhas na internet: ";
+    welcome += notConnectedCounter;
+
+   
+    
+
+      bot.sendMessage(id, welcome, "Markdown");      
+      }
+          
       else if(text.indexOf("start") > -1)//Caso o texto recebido contenha "START"
       {
       if (from_name == "")
@@ -131,7 +198,7 @@ void readTel()//Funçao que faz a leitura do Telegram.
       welcome += "Essa eh a MushLight\n\n";
       welcome += "Agora se chama\n";
       welcome +=  nomedobot.c_str();
-       welcome += "\n";
+      welcome += "\n";
       welcome += "/foto : Tira uma foto\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";
@@ -143,6 +210,7 @@ void readTel()//Funçao que faz a leitura do Telegram.
       welcome += "/telegram : Passa as msgs dos comandos do telegram\n";
       welcome += "/ledon: Liga o LED \n";
       welcome += "/ledoff: Para desligar o LED\n";
+      welcome += "/status : STATUS\n";
       welcome += "/start : Abre esse menu\n";
        welcome += "Acesse o ip http://";
       welcome +=  WiFi.localIP().toString(); 

@@ -4,9 +4,8 @@
   // Change this line to suit your time zone, e.g. USA EST configTime(-5 * 3600, 0, "pool.ntp.org", "time.nist.gov");
   // Change this line to suit your time zone, e.g. AUS configTime(8 * 3600, 0, "pool.ntp.org", "time.nist.gov");
   Serial.println(F("\nWaiting for time"));
-  while (!time(nullptr)) {
-    delay(500);
-  }
+  time(nullptr);
+  
   Serial.println("Time set");
 
     }
@@ -242,26 +241,27 @@ void readVibra(){
 
 
  if (valorvibra == 0) {
-  Serial.println(valorvibra);
-clap_counter++;
+  
+    clap_counter++;
  if (clap_counter > 0) { 
-  //takeNewPhoto = true; 
+    
+    
      if (led_state) {
       led_state = false;
       color_counter++;// LED was on, now off
-      if(color_counter > 8){ color_counter = 0;}
+      if(color_counter > 10){ color_counter = 0;}
       changeColor();
       //clap_counter = 0;
   //    sound_value = 0;
-Serial.println("Clap on");
-Serial.println(color_counter);
+  Serial.println("Clap on");
+  Serial.println(color_counter);
 
-delay(2000);
+    delay(2000);
 
       
    }
     else {
-         led_state = true;
+        led_state = true;
         ledoff();
         ledState = "ledoff";
 
@@ -269,10 +269,10 @@ delay(2000);
       delay(1000);
     }}
   delay(500);
-  //      Serial.println("sound");
- // Serial.println(valorvibra);
-
- // Serial.println(color_counter);
+ 
+  Serial.println(valorvibra);
+  Serial.println("||");  
+  Serial.println(color_counter);
   Serial.println("||");
   Serial.println(clap_counter);
 
@@ -281,21 +281,18 @@ delay(2000);
 
     void changeColor(){
    
-  //bot.sendMessage(id, "Alguem bateu palmas, acendendo a luz, mudando intensidade, mudando de cor", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+  bot.sendMessage(id, "Alguem bateu em mim, acendendo a luz.", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
   Serial.println("Luz acionada vibrando");
 
 //muda de cor
-if (color_counter == 0)
-  {
- ledState = "ledoff";
-  }
   if (color_counter == 1)
   {
-   ledState = "green";
+    
+   ledState = "ip";
   }
   if (color_counter == 2)
   { 
-    ledState = "blue";
+    ledState = "green";
     }
    if (color_counter == 3)
   { 
@@ -320,10 +317,20 @@ if (color_counter == 0)
 }
  if (color_counter == 8)
   { 
- ledState = "btc";
+ ledState = "ltc";
+}
+if (color_counter == 9)
+  { 
+ ledState = "blue";
+}
+ if (color_counter == 10)
+  { 
+ ledState = "fire2";
 }
 
+delay(1000);
   //sendPhotoTelegram();
+  takeNewPhoto = true; 
 
 }
 

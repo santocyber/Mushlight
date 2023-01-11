@@ -35,6 +35,15 @@
 #include "EEPROM.h"
 #include <ESPmDNS.h>
 
+//################## IWDT
+#include <ESP32Ping.h>
+  uint32_t notConnectedCounter = 0;
+
+
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include <soc/rtc_wdt.h>
+#include <esp_task_wdt.h>
 
 
 
@@ -121,7 +130,6 @@ Adafruit_BMP280 bmp; // I2C
 int valoratm = 0;//Declara a variável valorldr como inteiro
 int valortemp = 0;//Declara a variável valorldr como inteiro
 int valorhumi = 0;//Declara a variável valorldr como inteiro
-int valorco2 = analogRead(MQ_analog);;//Declara a variável valorldr como inteiro
 int valorvibra;
 
 String ledState;
@@ -218,6 +226,7 @@ unsigned long tempo7 = millis();
 unsigned long tempo8 = millis();
 unsigned long tempo9 = millis();
 unsigned long tempo10 = millis();
+unsigned long tempoping = millis();
 
 //######Config sleep
 unsigned long temposleep0;
@@ -256,23 +265,44 @@ uint32_t autoplayTimer;
 
 //##################### Configura voids
 
-#define SCORE_SIZE 0  
-//#define FASTLED_INTERRUPT_RETRY_COUNT 0
-//#define FASTLED_ALLOW_INTERRUPTS 0
-#define BRIGHTNESS 255
-#define CURRENT_LIMIT 2000
-
-
-#define TEXT_HEIGHT 0     // configura a altura do texto -2 para led 8x8 0 para led 1616
-#define WIDTHX 8       //configura texto pixels
-#define HEIGHTX 8
-
+//#############################################################################CONFIGURA LED
+//###########################################################################
+//############################http://fastled.io/docs/3.1/struct_c_r_g_b.html
+//############################CONFIGURA MATRIZ DE LED
 
 #define WIDTH 8
 #define HEIGHT 8
 #define SEGMENTS 1
 
 #define COLOR_ORDER GRB
+
+
+//configura texto
+#define TEXT_HEIGHT 0     
+#define WIDTHX WIDTH       //configura texto pixels
+#define HEIGHTX HEIGHT
+
+//configura gif
+#define FRAME_WIDTH WIDTH 
+#define FRAME_HEIGHT HEIGHT
+
+
+//##Configura effeito newone
+#define NUM_ROWS HEIGHT
+#define NUM_COLS WIDTH
+//#define NUM_LEDS NUM_ROWS * NUM_COLS
+byte eff = 0;
+//#define WIDTH NUM_COLS
+//#define HEIGHT NUM_ROWS
+//#define speed (100/(HEIGHT-4))
+//////////////////
+
+#define NUM_LEDS WIDTH * HEIGHT * SEGMENTS
+#define CHIPSET WS2811
+CRGB leds[NUM_LEDS];
+
+
+
 
 #define MATRIX_TYPE 0 
 #define CONNECTION_ANGLE 0    
@@ -292,28 +322,11 @@ uint32_t autoplayTimer;
 #define SPARKING 200
 #define FRAMES_PER_SECOND velovar
 
-
-
-//#######################################################Configura led
-//###########################################################################
-//############################http://fastled.io/docs/3.1/struct_c_r_g_b.html
-
-
-#define NUM_LEDS WIDTH * HEIGHT * SEGMENTS
-#define CHIPSET WS2811
-CRGB leds[NUM_LEDS];
-
-
-//##Configura effeito newone
-#define NUM_ROWS 8
-#define NUM_COLS 8
-//#define NUM_LEDS NUM_ROWS * NUM_COLS
-byte eff = 0;
-//#define WIDTH NUM_COLS
-//#define HEIGHT NUM_ROWS
-//#define speed (100/(HEIGHT-4))
-
-
+#define SCORE_SIZE 0  
+//#define FASTLED_INTERRUPT_RETRY_COUNT 0
+//#define FASTLED_ALLOW_INTERRUPTS 0
+#define BRIGHTNESS 255
+#define CURRENT_LIMIT 2000
 
 
 
@@ -550,11 +563,15 @@ bool initWiFi() {
     Serial.printf("mDNS responder started '%s'\n", nomedobot.c_str());
   }
 
-
-
+      
   Serial.println(WiFi.localIP());
   return true;
 }
+
+
+
+
+
 
 
 
@@ -563,7 +580,7 @@ bool initWiFi() {
 
  String readCO2() {
 
-  float t = valorco2;
+  float t = analogRead(MQ_analog);
 
     return String(t);
 }
@@ -686,10 +703,6 @@ ledcAttachPin(4, config.ledc_channel);
     config.fb_count = 1;
   }
 
-#if defined(CAMERA_MODEL_ESP_EYE)
-  pinMode(13, INPUT_PULLUP);
-  pinMode(14, INPUT_PULLUP);
-#endif
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
@@ -710,10 +723,6 @@ ledcAttachPin(4, config.ledc_channel);
   //drop down frame size for higher initial frame rate
   s->set_framesize(s, FRAMESIZE_QVGA);
 
-#if defined(CAMERA_MODEL_M5STACK_WIDE)
-  s->set_vflip(s, 1);
-  s->set_hmirror(s, 1);
-#endif
 
   return true;
 }
@@ -723,7 +732,9 @@ ledcAttachPin(4, config.ledc_channel);
 
 
 void setup() {
+  //desabilita o watchdog configurando o timeout para 4 segundos
 
+  esp_task_wdt_init(30, false);
 
   // Serial port for debugging purposes
   pinMode(33, OUTPUT);
@@ -2033,7 +2044,10 @@ oceanNoise();
     FastLED.show(); // display this frame
     }
 
-    
+    if (ledState == "ip") {
+    fillString(WiFi.localIP().toString(), 0x0000FF);
+        FastLED.show(); // display this frame
+    }    
 
 
  //##Loop paralelo
@@ -2093,8 +2107,32 @@ verifica2();
   delay(50);
 
 
+  if (millis() - tempoping > 20000)//Faz a verificaçao das funçoes a cada 30min
+   { 
 
+//#################################################################PING WDT
+    if(Ping.ping("google.com")) {
+ Serial.println("Ping pong OK contando....");
+    Serial.print(Ping.averageTime());
+    Serial.println(" ms");
+    Serial.printf("\n%lu: Remaining free mem: %u\n", millis(), ESP.getFreeHeap());
 
-  
+      }
+
+else{ 
+      notConnectedCounter++;
+          Serial.println("Falha do ping da internet, contando...");
+          Serial.println(notConnectedCounter);
+
+    if(notConnectedCounter > 50) { // Reset a placa apos 50 erros    
+    Serial.println("Reiniciando esp por falha na internet");
+    
+          ESP.restart();
+     
+   }
+   }
+   
+   tempoping = millis();
+   }
   
 }
