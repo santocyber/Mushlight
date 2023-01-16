@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html>
+  <head>
+<link rel="manifest" href="manifest.json">
+<script>
+if ('serviceWorker' in navigator) {
+navigator.serviceWorker.register('sw.js');
+}
+</script>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="green">
+<meta name="apple-mobile-web-app-title" content="MushLight">
+
+    <title>MushLight Control</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.2/css/all.css" integrity="sha384-fnmOCqbTlWIlj8LyTjo7mOUStjsKC4pOpQbqyi7RrhN7udi9RwhKkMHpvLbHG9Sr" crossorigin="anonymous">
+  </head>
+  <body>
+    <div class="topnav">
+      <h1>MushLight Control</h1>
+    </div>
+    <div class="content">
+      <div class="card-grid">
+
+        <div class="card">
+          <p class="card-title">Sensores</p>
+  <p>
+    <i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
+    <span class="dht-labels">PH</span> 
+    <span id="temperature">%PH%</span>
+    <sup class="units">pH</sup>
+
+  </p>
+  <p><i class="fas fa-thermometer-half" style="color:#059e8a;"></i> 
+    <span class="dht-labels">Temperatura</span> 
+    <span id="temperature">%TEMPERATURE%</span>
+    <sup class="units">&deg;C</sup>
+
+  </p>
+  <p>
+    <i class="fas fa-tint" style="color:#00add6;"></i> 
+    <span class="dht-labels">Umidade</span>
+    <span id="humidity">%HUMIDITY%</span>
+    <sup class="units">&percnt;</sup>
+
+  </p>
+  <p>
+    <i class="fas fa-tint" style="color:#00add6;"></i> 
+    <span class="dht-labels">ATM</span>
+    <span id="humidity">%PRESSAO%</span>
+    <sup class="units">kPa</sup>
+
+  </p>
+<p><a href="clima.txt" title="Para deletar os LOGS digite /deletelog ">LOG SENSORES</a>||<a title="Manda um alo para o SantoCyber" href="loggrafico">LOG GRAFICO</a>||<a title="Manda um alo para o SantoCyber" href="log2.html">HISTORICO</a></p>
+
+
+
+ <form action="/" method="POST">  
+ <p class="card-title">Modo Texto</p>
+<p>
+Texto:<input type="text" id ="txt" name="txt" value="MushLight"><br>
+Cor:<input type="text" id ="cor" name="cor" value="0xFFFFFF"><br>
+Velocidade:<input type="text" id ="velocidade" name="velocidade" value="60"><br>
+Dimmer:<input type="text" id ="dimmer" name="dimmer" value="250"><br>
+<input  type ="submit" value ="Enviar"><br>
+<br>
+<a title="AliceBlue =0xF0F8FF, Amethyst =0x9966CC, AntiqueWhite =0xFAEBD7, Aqua =0x00FFFF,
+  Aquamarine =0x7FFFD4, Azure =0xF0FFFF, Beige =0xF5F5DC, Bisque =0xFFE4C4,
+  Black =0x000000, BlanchedAlmond =0xFFEBCD, Blue =0x0000FF, BlueViolet =0x8A2BE2,
+  Brown =0xA52A2A, BurlyWood =0xDEB887, CadetBlue =0x5F9EA0, Chartreuse =0x7FFF00,
+  Chocolate =0xD2691E, Coral =0xFF7F50, CornflowerBlue =0x6495ED, Cornsilk =0xFFF8DC,
+  Crimson =0xDC143C, Cyan =0x00FFFF, DarkBlue =0x00008B, DarkCyan =0x008B8B,
+  DarkGoldenrod =0xB8860B, DarkGray =0xA9A9A9, DarkGrey =0xA9A9A9, DarkGreen =0x006400,
+  DarkKhaki =0xBDB76B, DarkMagenta =0x8B008B, DarkOliveGreen =0x556B2F, DarkOrange =0xFF8C00,
+  DarkOrchid =0x9932CC, DarkRed =0x8B0000, DarkSalmon =0xE9967A, DarkSeaGreen =0x8FBC8F,
+  DarkSlateBlue =0x483D8B, DarkSlateGray =0x2F4F4F, DarkSlateGrey =0x2F4F4F, DarkTurquoise =0x00CED1,
+  DarkViolet =0x9400D3, DeepPink =0xFF1493, DeepSkyBlue =0x00BFFF, DimGray =0x696969,
+  DimGrey =0x696969, DodgerBlue =0x1E90FF, FireBrick =0xB22222, FloralWhite =0xFFFAF0,
+  ForestGreen =0x228B22, Fuchsia =0xFF00FF, Gainsboro =0xDCDCDC, GhostWhite =0xF8F8FF,
+  Gold =0xFFD700, Goldenrod =0xDAA520, Gray =0x808080, Grey =0x808080,
+  Green =0x008000, GreenYellow =0xADFF2F, Honeydew =0xF0FFF0, HotPink =0xFF69B4,
+  IndianRed =0xCD5C5C, Indigo =0x4B0082, Ivory =0xFFFFF0, Khaki =0xF0E68C,
+  Lavender =0xE6E6FA, LavenderBlush =0xFFF0F5, LawnGreen =0x7CFC00, LemonChiffon =0xFFFACD,
+  LightBlue =0xADD8E6, LightCoral =0xF08080, LightCyan =0xE0FFFF, LightGoldenrodYellow =0xFAFAD2,
+  LightGreen =0x90EE90, LightGrey =0xD3D3D3, LightPink =0xFFB6C1, LightSalmon =0xFFA07A,
+  LightSeaGreen =0x20B2AA, LightSkyBlue =0x87CEFA, LightSlateGray =0x778899, LightSlateGrey =0x778899,
+  LightSteelBlue =0xB0C4DE, LightYellow =0xFFFFE0, Lime =0x00FF00, LimeGreen =0x32CD32,
+  Linen =0xFAF0E6, Magenta =0xFF00FF, Maroon =0x800000, MediumAquamarine =0x66CDAA,
+  MediumBlue =0x0000CD, MediumOrchid =0xBA55D3, MediumPurple =0x9370DB, MediumSeaGreen =0x3CB371,
+  MediumSlateBlue =0x7B68EE, MediumSpringGreen =0x00FA9A, MediumTurquoise =0x48D1CC, MediumVioletRed =0xC71585,
+  MidnightBlue =0x191970, MintCream =0xF5FFFA, MistyRose =0xFFE4E1, Moccasin =0xFFE4B5,
+  NavajoWhite =0xFFDEAD, Navy =0x000080, OldLace =0xFDF5E6, Olive =0x808000,
+  OliveDrab =0x6B8E23, Orange =0xFFA500, OrangeRed =0xFF4500, Orchid =0xDA70D6,
+  PaleGoldenrod =0xEEE8AA, PaleGreen =0x98FB98, PaleTurquoise =0xAFEEEE, PaleVioletRed =0xDB7093,
+  PapayaWhip =0xFFEFD5, PeachPuff =0xFFDAB9, Peru =0xCD853F, Pink =0xFFC0CB,
+  Plaid =0xCC5533, Plum =0xDDA0DD, PowderBlue =0xB0E0E6, Purple =0x800080,
+  Red =0xFF0000, RosyBrown =0xBC8F8F, RoyalBlue =0x4169E1, SaddleBrown =0x8B4513,
+  Salmon =0xFA8072, SandyBrown =0xF4A460, SeaGreen =0x2E8B57, Seashell =0xFFF5EE,
+  Sienna =0xA0522D, Silver =0xC0C0C0, SkyBlue =0x87CEEB, SlateBlue =0x6A5ACD,
+  SlateGray =0x708090, SlateGrey =0x708090, Snow =0xFFFAFA, SpringGreen =0x00FF7F,
+  SteelBlue =0x4682B4, Tan =0xD2B48C, Teal =0x008080, Thistle =0xD8BFD8,
+  Tomato =0xFF6347, Turquoise =0x40E0D0, Violet =0xEE82EE, Wheat =0xF5DEB3,
+  White =0xFFFFFF, WhiteSmoke =0xF5F5F5, Yellow =0xFFFF00, YellowGreen =0x9ACD32,
+  FairyLight =0xFFE42D, FairyLightNCC =0xFF9D2A"  href="https://en.wikipedia.org/wiki/Web_colors">WIKIPEDIA COLORS</a>
+</span>
+
+ </form>
+
+<p></a>
+</p>
+<br>
+
+
+        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>LED</p>
+          <p>
+            <a href="ledon"><button class="button-on">LIGA</button></a>
+            <a href="off"><button class="button-off">OFF</button></a>
+            <a href="sleep"><button class="button-off">SLEEP</button></a>
+ <span class="popuptext" id="myPopup">Selecione a cor e clique em enviar</span>
+
+          </p>
+
+<table>
+<tbody>
+    <tr>
+     <td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Gira texto</p>
+          <p>
+            <a href="runningtext"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+          <div class="card">
+          
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Telegrama</p>
+          <p>
+            <a href="telegram"><button class="button-on">LIGA</button></a>
+          
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Relogio</p>
+          <p>
+            <a href="clock"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Clima</p>
+          <p>
+            <a href="clima"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+    <tr>
+     <td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Temperatura</p>
+          <p>
+            <a href="temp"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+          <div class="card">
+          
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Umidade</p>
+          <p>
+            <a href="humi"><button class="button-on">LIGA</button></a>
+          
+</td>     
+<td>
+          <div class="card">
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Pressao</p>
+          <p>
+            <a href="pressao"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> PH</p>
+          <p>
+            <a href="ph"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+
+
+    <tr>
+     <td>
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>RainbowGliter</p>
+          <p>
+            <a href="rainbowgliter"><button class="button-on">LIGA</button></a>
+
+
+
+</td>     
+<td>
+          
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>RainbowStrip</p>
+          <p>
+            <a href="rainbowstrip"><button class="button-on">LIGA</button></a>
+          
+</td>     
+<td>
+          <div class="card">
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Rainbow Horizontal</p>
+          <p>
+            <a href="rainbow2"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Rainbow</p>
+          <p>
+            <a href="rainbowon"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+
+    <tr>
+     <td>
+          <div class="card">
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fire</p>
+          <p>
+            <a href="fire2"><button class="button-on">LIGA</button></a>
+
+
+</td>     
+<td>
+          <div class="card">
+          
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Pisca</p>
+          <p>
+            <a href="pisca"><button class="button-on">LIGA</button></a>
+          
+</td>     
+<td>
+          <div class="card">
+
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Chuvisco</p>
+          <p>
+            <a href="light"><button class="button-on">LIGA</button></a>
+
+</td>     
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Pisca rapido</p>
+          <p>
+            <a href="spiral"><button class="button-on">LIGA</button></a>
+</td>     
+</tr>
+
+<tr>
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Plasma</p>
+          <p>
+            <a href="plasma"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+          
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Zebra</p>
+          <p>
+            <a href="zebra"><button class="button-on">LIGA</button></a>
+          
+</td>
+     <td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Matrix</p>
+          <p>
+            <a href="matrixon"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+       
+
+             <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Oceano</p>
+          <p>
+            <a href="oceano"><button class="button-on">LIGA</button></a>
+</td>
+</tr>
+<td>
+
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Floresta</p>
+          <p>
+            <a href="forest"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Madness</p><p>
+            <a href="madness"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Lava</p><p>
+            <a href="lava"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Balls</p>
+          <p>
+            <a href="balls"><button class="button-on">LIGA</button></a>
+
+</td>
+</tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fogo</p>
+          <p>
+            <a href="gif2"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Fantasma</p>
+          <p>
+            <a href="gif3"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> IronMan</p>
+          <p>
+            <a href="gif4"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Imagens</p>
+          <p>
+            <a href="gif5"><button class="button-on">LIGA</button></a>
+</td>
+</tr>
+<td>
+
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> SmileFace</p>
+          <p>
+            <a href="gif6"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Coracao</p>
+          <p>
+            <a href="gif7"><button class="button-on">LIGA</button></a>
+</td>
+     <td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Cogumelo</p>
+          <p>
+            <a href="gif8"><button class="button-on">LIGA</button></a>
+
+</td>
+     <td>
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Mario</p>
+          <p>
+            <a href="gif"><button class="button-on">LIGA</button></a>
+
+
+</td>
+</tr>
+<tr>
+<td>
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> AZUL</p>
+          <p>
+            <a href="blue"><button class="button-on">LIGA</button></a>
+
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> AMARELO</p>
+          <p>
+            <a href="amarelo"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> VERDE</p>
+          <p>
+            <a href="green"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> VERMELHO</p>
+          <p>
+            <a href="red"><button class="button-on">LIGA</button></a>
+</td>
+
+</tr>
+<tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Swirl</p>
+          <p>
+            <a href="swirl"><button class="button-on">LIGA</button></a>
+</td>
+
+<td>
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Pride</p>
+          <p>
+            <a href="pride"><button class="button-on">LIGA</button></a>
+
+</td>
+<td>
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>StarFall</p>
+          <p>
+            <a href="star"><button class="button-on">LIGA</button></a>
+
+
+
+
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Spark</p>
+          <p>
+            <a href="spark"><button class="button-on">LIGA</button></a>
+</td>
+
+</tr>
+
+<tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Runner Game</p>
+          <p>
+            <a href="runner"><button class="button-on">LIGA</button></a>
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Tetris Game</p>
+          <p>
+            <a href="tetris"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Snake Game</p>
+          <p>
+            <a href="snake"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Arkanoid Game</p>
+          <p>
+            <a href="arkanoid"><button class="button-on">LIGA</button></a>
+</td>
+
+</tr>
+<tr>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Bitcoin</p>
+          <p>
+            <a href="btc"><button class="button-on">LIGA</button></a>
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Ethereum</p>
+          <p>
+            <a href="eth"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Litecoin</p>
+          <p>
+            <a href="ltc"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Shiba Inu</p>
+          <p>
+            <a href="shiba"><button class="button-on">LIGA</button></a>
+</td>
+
+</tr>
+<tr>
+<td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Pacifica</p>
+          <p>
+            <a href="pacifica"><button class="button-on">LIGA</button></a>
+
+</td>
+
+<td>
+
+          <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i> Cronometro</p>
+          <p>
+            <a href="cronometro"><button class="button-on">LIGA</button></a>
+
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Juggle</p>
+          <p>
+            <a href="juggle"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>DATA</p>
+          <p>
+            <a href="data"><button class="button-on">LIGA</button></a>
+
+
+</td>
+
+</tr>
+<tr>
+<td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>BPM</p>
+          <p>
+            <a href="bpm"><button class="button-on">LIGA</button></a>
+
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Sinelon</p>
+          <p>
+            <a href="sinelon"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Confetti</p>
+          <p>
+            <a href="confetti"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Snow</p>
+          <p>
+            <a href="snowon"><button class="button-on">LIGA</button></a>
+
+
+</td>
+
+</tr>
+<tr>
+<td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>KeepWalking</p>
+          <p>
+            <a href="gif9"><button class="button-on">LIGA</button></a>
+
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>DOGE Coin</p>
+          <p>
+            <a href="doge"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Monero Coin</p>
+          <p>
+            <a href="xmr"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Dolar</p>
+          <p>
+            <a href="dolar"><button class="button-on">LIGA</button></a>
+
+
+</td>
+
+</tr>
+<tr>
+<td>
+                        <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>FLying</p>
+          <p>
+            <a href="newone"><button class="button-on">LIGA</button></a>
+
+</td>
+
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Spiral</p>
+          <p>
+            <a href="spiraltwo"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>PapaiNoel</p>
+          <p>
+            <a href="papainoel"><button class="button-on">LIGA</button></a>
+</td>
+<td>
+
+                    <div class="card">
+          <p class="card-title"><i class="fas fa-lightbulb"></i>Dots</p>
+          <p>
+            <a href="dots"><button class="button-on">LIGA</button></a>
+
+
+</td>
+
+</tr>
+
+
+
+
+
+<tr>
+<td>
+
+</td>
+
+
+</table>
+          
+
+          </div>
+          <p class="state">State: %STATE%</p>
+        </div>
+      </div>
+
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { text-align:center; }
+    .vert { margin-bottom: 10%; }
+    .hori{ margin-bottom: 0%; }
+  </style>
+</head>
+  </body>
+</html>
