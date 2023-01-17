@@ -1,4 +1,5 @@
 
+
     void StartTime(){
   // Note: The ESP8266 Time Zone does not function e.g. ,0,"time.nist.gov"
   configTime(TZone * 3600, 0, "pool.ntp.org", "time.nist.gov");
@@ -14,14 +15,21 @@
 
 
 
+
 void verifica(){
+
+ 
+     time_t now = time(nullptr);
+     time_now = String(ctime(&now)).substring(0,24);
+
+   Serial.print("Task3 running on core ");
+   Serial.println(xPortGetCoreID());
+
 
 //       takeNewPhoto = true;
     //   sendPhotoTelegram();
       
-        time_t now = time(nullptr);
-          time_now = String(ctime(&now)).substring(0,24);
-
+     
           String msg = nomedobot.c_str(); 
           msg += ",";          
           msg += "\n";
@@ -30,26 +38,26 @@ void verifica(){
           msg += ",";
           msg += "\n";
           msg += "Temperatura:";
-          msg += msg.concat(readDHTTemperature());
+          msg += msg.concat(readDHTTemperature().c_str());
           msg += "C,";
           msg += "\n";
           msg += "Umidade:";
-          msg += msg.concat(readDHTHumidity());
+          msg += msg.concat(readDHTHumidity().c_str());
           msg += "%,"; 
           msg += "\n";
           msg += "Pressao:";
-          msg += msg.concat(readDHTPressao());
+          msg += msg.concat(readDHTPressao().c_str());
           msg += " Pa,"; 
           msg += "\n";
           msg += "PH:";
-          msg += msg.concat(ph());
+          msg += msg.concat(ph().c_str());
           msg += " PH,"; 
           msg += "\n";
           bot.sendMessage(id, msg, "");
           
           addFile(SPIFFS, climaPath, msg.c_str());
 
- 
+
           
 }
 
@@ -60,6 +68,10 @@ void verifica(){
 
 
 void verifica2(){
+
+   Serial.print("Task4 running on core ");
+   Serial.println(xPortGetCoreID());
+
   
 time_t now = time(nullptr);
  time_now = String(ctime(&now)).substring(0,24);

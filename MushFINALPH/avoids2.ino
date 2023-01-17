@@ -1,24 +1,27 @@
-void vTask1( void * pvParameters )
-{
 
-for(;;){
+void tele(void * parameter){
     readTel();
-    vTaskDelay( 5000 / portTICK_PERIOD_MS );
-  } 
+     Serial.print("Task Telegram running on core ");
+   Serial.println(xPortGetCoreID());
+    vTaskDelete(NULL);
 }
 
 
 
 void connect()//Funçao para Conectar ao wifi e verificar à conexao.
 {
+
+
    if (WiFi.status() != WL_CONNECTED)//Caso nao esteja conectado ao WiFi, Ira conectarse
    {
      //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
     WiFi.begin(ssid.c_str(), pass.c_str());
-    client.setHandshakeTimeout(120000);   
+    delay(200);
+ 
+    client.setHandshakeTimeout(60000);   
     Serial.println("Internet conectada novamente... ");
-    delay(10);
+    delay(100);
    }
 }
 
@@ -30,7 +33,6 @@ void pingando(){
 //   Serial.println("In Task2code loop");
    Serial.print("Task2 running on core ");
    Serial.println(xPortGetCoreID());
-   connect();
 
 
 //#################################################################PING WDT
@@ -66,8 +68,6 @@ void readTel()//Funçao que faz a leitura do Telegram.
 {  
 
 
-
-   // connect();
    Serial.print("Task1 running on core ");
    Serial.println(xPortGetCoreID());
 
@@ -85,7 +85,7 @@ void readTel()//Funçao que faz a leitura do Telegram.
       from_name = bot.messages[i].from_name;
       //bot.messages[i].type == "channel_post";
 
-    Serial.printf("\nGot a message %s\n", text);
+    Serial.printf("\nPeguei essa mensagem %s\n", text);
 
    
     if (from_name == "") from_name = "Cade o nick?";
@@ -258,6 +258,9 @@ void readTel()//Funçao que faz a leitura do Telegram.
     welcome = "Nome do bot:\n";
     welcome +=  nomedobot.c_str();
     welcome += "\n";
+    welcome += "CORE:";    
+    welcome += xPortGetCoreID();
+    welcome += "\n";
     welcome += "Tempo ping:";
 Ping.ping("google.com", 1);
     welcome +=  Ping.averageTime();
@@ -265,10 +268,9 @@ Ping.ping("google.com", 1);
     welcome += "\nRemaining free mem:";
     welcome += ESP.getFreeHeap();
     welcome += "\n";
-        welcome += "PSRAM Size:";
-    welcome += ESP.getPsramSize();
-  
-        welcome += "\nfree psram:";
+    welcome += "PSRAM Size:";
+    welcome += ESP.getPsramSize();  
+    welcome += "\nFree PSRAM:";
     welcome += ESP.getFreePsram();
     welcome += "\n";
     welcome += "Millis: ";
@@ -326,6 +328,8 @@ Ping.ping("google.com", 1);
 
    }
 
+  //Serial.println("Deleting the telegram task");
+ // vTaskDelete(Task1);
 
 
 

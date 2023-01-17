@@ -36,9 +36,12 @@
 #include <esp_task_wdt.h>
 #include "soc/rtc_cntl_reg.h"  // Disable brownour problems
 #include "soc/soc.h"           // Disable brownour problems
+#include "sdkconfig.h"
+#include "driver/rtc_io.h"
+#include <esp_system.h>
+#include <nvs_flash.h>
 
-
-
+#define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
 
 //############################################################################CAMERA SYSTEM
 /*
@@ -50,22 +53,23 @@
 #include "img_converters.h"
 #include "fb_gfx.h"
 #include "driver/ledc.h"
-
+#include "esp_camera.h"
 #include "sdkconfig.h"
 #include "driver/rtc_io.h"
 */
 
 //################################################################################Task handle 
 
+
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-TaskHandle_t Task1;
-//TaskHandle_t Task2;
-
+//TaskHandle_t Task1;
 
 // function prototypes
-void vTask1( void * pvParameters );
-//void vTask2( void * pvParameters );
+//void vTask1( void * pvParameters );
+
+//void readTel( void * pvParameters );
+
 
 
 
@@ -168,7 +172,7 @@ String msg;
 String readings;
 String logger;
 String photo;
-
+String ph();
 
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
@@ -188,9 +192,9 @@ String dimmervar;
 
 
 
-#define _DISABLE_TLS_
+//#define _DISABLE_TLS_
 
-WiFiClientSecure client;
+
 HTTPClient http;
 
 
@@ -209,7 +213,7 @@ const int udpPort = 3333;
 
 //##configura o millis
 unsigned long tempo = millis();
-unsigned long tempo2 = millis();
+unsigned long tempoverifica = millis();
 unsigned long tempo3 = millis();
 unsigned long tempo4 = millis();
 unsigned long tempo5 = millis();
@@ -218,6 +222,7 @@ unsigned long tempo7 = millis();
 unsigned long tempo8 = millis();
 unsigned long tempo9 = millis();
 unsigned long tempo10 = millis();
+unsigned long tempotelegram = millis();
 unsigned long tempoping = millis();
 
 //######Config sleep
@@ -261,6 +266,9 @@ uint32_t autoplayTimer;
 //###########################################################################
 //############################http://fastled.io/docs/3.1/struct_c_r_g_b.html
 //############################CONFIGURA MATRIZ DE LED
+#define FASTLED_SHOW_CORE 0
+
+
 
 #define WIDTH 16
 #define HEIGHT 16
@@ -482,9 +490,11 @@ void addFile(fs::FS &fs, const char * path, const char * message){
 
 
 
-
-
 //#####INICIA TELEGRAM TOKEN via web
+
+
+
+
 String TOKEN2(){
   initSPIFFS();
     tokentelegram = readFile (SPIFFS, tokentelegramPath);
@@ -493,9 +503,12 @@ String TTT = tokentelegram.c_str();
 return TTT; 
 }
 String TOKEN = TOKEN2();
-#include <UniversalTelegramBot.h>
-//#include "UniversalTelegramBot.h"
+//#include <UniversalTelegramBot.h>
+#include "UniversalTelegramBot.h"
 #define tokentele TOKEN
+
+WiFiClientSecure client;
+
 UniversalTelegramBot bot(tokentele, client);
 
 
@@ -532,7 +545,6 @@ bool initWiFi() {
   
     timeClient.begin();
     timeClient.update();
-  //  readTel(void * pvParameters );
   //  verifica();
   //  verifica2();
     StartTime();
@@ -600,11 +612,15 @@ int buf[10],temp;
     avgValue+=buf[i];
   float phValue=(float)avgValue*5.0/1024/6/10; //convert the analog into millivolt
   phValue=7.0*phValue/2;                      //convert the millivolt into pH value
-  Serial.print("    pH:");  
-  Serial.print(phValue,2);
-  Serial.println(" ");
+//  Serial.print("    pH:");  
+//  Serial.print(phValue,2);
+//  Serial.println(" ");
+//delay(100);
 
-    return String(phValue);
+//String phstr = String(phValue);
+return String(phValue);
+
+    delay(100);
 }
 
 
@@ -697,22 +713,18 @@ String processor(const String& var){
 void setup() {
   //desahabilita o watchdog configurando o timeout para 40 segundos
 
-  esp_task_wdt_init(60, false);
+  esp_task_wdt_init(60, true);
 
 
   //#####################################################################inicia task handle
 
     //create a task that will be executed in the Task1code() function, with priority 1 and executed on core 0
- //   xTaskCreate(
-    xTaskCreatePinnedToCore(
-                      vTask1,   /* Task function. */
-                      "Task1",     /* name of task. */
-                      40000,       /* Stack size of task */
-                      NULL,        /* parameter of the task */
-                      0,           /* priority of the task */
-                      &Task1,      /* Task handle to keep track of created task */
-                      0);          /* pin task to core 1 */                  
-    delay(500); 
+//    xTaskCreatePinnedToCore(readTel,"Task1",40000,NULL,0,&Task1, 1); 
+xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );     
+                
+ //   delay(500); 
+
+
 
   // Serial port for debugging purposes
  //   pinMode(33, OUTPUT);
@@ -734,12 +746,6 @@ Serial.setDebugOutput(true);
 
 
 
- //init telegram cert
-
-client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-//client->setTimeout(4000);
-
-client.setTimeout(60000);
 
  
 //########### LED
@@ -756,8 +762,8 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
 
 
  //########################Le arquivos gravados             
-
-  initSPIFFS();
+//ja foi iniciado no telegram
+  //initSPIFFS();
 
   
   // Load values saved in SPIFFS
@@ -797,6 +803,13 @@ bmp.begin();
 
   if(initWiFi()) {
 
+ //init telegram cert
+delay(200);
+//client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+ client.setInsecure();
+
+delay(200);
+//client.setTimeout(30000);
 
        
 
@@ -1574,6 +1587,84 @@ FastLED.delay(2000 / velovar);
 
 void loop() {
 
+
+ //##############################################################################Loop paralelo
+    
+    
+    if (millis() - tempo6 > 5000)//Faz a verificaçao das funçoes a cada 30min
+   {
+    
+ events.send("ping",NULL,millis());
+ events.send(getSensorReadings().c_str(),"new_readings" ,millis());
+   //Serial.print(getSensorReadings().c_str());
+       
+      tempo6 = millis();
+     
+   }
+
+
+if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
+   {
+      //#### Grava o LOG em JSON
+      verifica2(); 
+      tempo8 = millis();
+     
+   }
+
+
+//1200000
+  if (millis() - tempoverifica > 1200000)//Faz a verificaçao das funçoes a cada 30min
+   {   //tira foto e manda clima no telegram
+      connect();
+     //readTel();
+      verifica();
+      tempoverifica = millis();
+     
+   }
+
+     if (millis() - tempo3 > 100)//Faz a verificaçao das funçoes a cada 30min
+   {
+    //  readVibra();
+      tempo3 = millis();
+     
+   }
+
+     if (millis() - tempoping > 300000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      connect();
+      pingando();
+      tempoping = millis();
+     
+   }
+
+
+     if (millis() - tempotelegram > 5000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      connect();
+    //  readTel();
+    xTaskCreatePinnedToCore(tele,"READ TEL", 40000, NULL, 0, NULL,0 );     
+
+    
+      tempotelegram = millis();
+     
+   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 
 
@@ -1681,7 +1772,9 @@ if (ledState == "ledon") {
     }
       if (ledState == "ph") {
     fillString(ph()+ "pH", 0x00FFFF);
-        FastLED.show(); // display this frame
+       // FastLED.show(); // display this frame
+    xTaskCreatePinnedToCore(fast,"FAST LED", 1000, NULL, 1, NULL,0 );     
+
     }
           if (ledState == "ph2") {
     filltxt(ph()+ "pH", 2);
@@ -2035,52 +2128,5 @@ oceanNoise();
     fillString(WiFi.localIP().toString(), 0x0000FF);
         FastLED.show(); // display this frame
     }    
-
-
- //##Loop paralelo
-    if (millis() - tempo6 > 5000)//Faz a verificaçao das funçoes a cada 30min
-   {
-    
- events.send("ping",NULL,millis());
- events.send(getSensorReadings().c_str(),"new_readings" ,millis());
-   //Serial.print(getSensorReadings().c_str());
-       
-      tempo6 = millis();
-     
-   }
-
-
-if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
-   {
-    //#### Grava o LOG em JSON
-    verifica2(); 
-      tempo8 = millis();
-     
-   }
-
-
-
-  if (millis() - tempo2 > 1200000)//Faz a verificaçao das funçoes a cada 30min
-   {   //tira foto e manda clima no telegram
-      verifica();
-      tempo2 = millis();
-     
-   }
-
-     if (millis() - tempo3 > 100)//Faz a verificaçao das funçoes a cada 30min
-   {
-    //  readVibra();
-      tempo3 = millis();
-     
-   }
-
-     if (millis() - tempoping > 300000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      pingando();
-      tempoping = millis();
-     
-   }
-
-
 
 }
