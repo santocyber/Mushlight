@@ -1,9 +1,68 @@
 
+
+void tele(void * parameter){
+    readTel();
+    vTaskDelete(NULL);
+}
+
+
+void connect()//Funçao para Conectar ao wifi e verificar à conexao.
+{
+   if (WiFi.status() != WL_CONNECTED)//Caso nao esteja conectado ao WiFi, Ira conectarse
+   {
+    WiFi.begin(ssid.c_str(), pass.c_str());
+    //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    client.setHandshakeTimeout(120000);
+
+    delay(10);
+   }
+}
+
+
+
+
+void pingando(){
+
+   Serial.print("Task2 running on core ");
+   Serial.println(xPortGetCoreID());
+
+
+//#################################################################PING WDT
+    if(Ping.ping("google.com", 1)) {
+ Serial.println("Ping pong OK contando....");
+    Serial.print(Ping.averageTime());
+    Serial.println(" ms");
+    Serial.printf("\n%lu: Remaining free mem: %u\n", millis(), ESP.getFreeHeap());
+
+      }
+
+else{ 
+      notConnectedCounter++;
+          Serial.println("Falha do ping da internet, contando...");
+          Serial.println(notConnectedCounter);
+
+    if(notConnectedCounter > 1000) { // Reset a placa apos 50 erros    
+    Serial.println("Reiniciando esp por falha na internet");
+    
+          ESP.restart();
+     
+   }
+   }
+
+}
+
 //##############VOID TELEGRAM
 
 
 void readTel()//Funçao que faz a leitura do Telegram.
 {  
+
+
+   Serial.print("Task1 running on core ");
+   Serial.println(xPortGetCoreID());
+
+
+  
    int newmsg = bot.getUpdates(bot.last_message_received + 1);
 //   int msgtxt = bot.getUpdates(bot.last_message_received);
  //  String msgtele = bot.messages[1].text;
@@ -16,13 +75,19 @@ void readTel()//Funçao que faz a leitura do Telegram.
       from_name = bot.messages[i].from_name;
       //bot.messages[i].type == "channel_post";
 
-    Serial.printf("\nGot a message %s\n", text);
+    Serial.printf("\nPeguei essa mensagem %s\n", text);
 
    
     if (from_name == "") from_name = "Cade o nick?";
 
-    String hi = "Vc disse isso mesmo? Vou executar! ";
+    String hi = nomedobot.c_str(); 
+    hi += ":";
+    hi += "Vc disse isso mesmo?";
+    hi += "\n";
     hi += text;
+    hi += "\n";
+    hi += "Vou executar!";
+      
     bot.sendMessage(id, hi, "Markdown");
 
 
@@ -68,8 +133,8 @@ void readTel()//Funçao que faz a leitura do Telegram.
           msg += "\n";
           msg += "CO2:";
           msg += msg.concat(readCO2());
-          msg += " PPM,"; 
-          msg += "\n";
+          msg += "PPM,"; 
+
           bot.sendMessage(id, msg, "");
           
        //   addFile(SPIFFS, climaPath, msg.c_str());
@@ -139,14 +204,14 @@ void readTel()//Funçao que faz a leitura do Telegram.
 
             else if (text.indexOf("foto") > -1)//Caso o texto recebido contenha "OFF"
       {
-        camtelegram();
+       // camtelegram();
        
         bot.sendMessage(id, "Sorria!!", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
                   else if (text.indexOf("sd") > -1)//Caso o texto recebido contenha "OFF"
       {
-        cam = "on";
-        sendPhotoTelegram();
+  //      cam = "on";
+  //      sendPhotoTelegram();
        
 
 //        sendfoto();
@@ -154,22 +219,48 @@ void readTel()//Funçao que faz a leitura do Telegram.
       }
            else if (text.indexOf("restart") > -1)//Caso o texto recebido contenha "OFF"
       {
-        ESP.restart();
-       
         bot.sendMessage(id, "reiniciando esp", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+        delay(500);
+        ESP.restart();
       }
+
+      
+           else if (text.indexOf("deletalog") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        bot.sendMessage(id, "deletando log", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+        delay(500);
+        writeFile(SPIFFS, climaPath, "");
+        writeFile(SPIFFS, loggerPath, "");
+        
+      }
+
+      
 
        else if (text.indexOf("status") > -1)//Caso o texto recebido contenha "OFF"
       {
-    welcome = "Nome do bot:\n";
+     welcome = "Nome do bot:\n";
     welcome +=  nomedobot.c_str();
     welcome += "\n";
-    welcome += "Tempo ping:\n";
-Ping.ping("google.com");
+    welcome += "CORE:";    
+    welcome += xPortGetCoreID();
+    welcome += "\n";
+    welcome += "SSID:";    
+    welcome += ssid.c_str();
+    welcome += "\n";    
+    welcome += "Tempo ping:";    
+Ping.ping("google.com", 1);
     welcome +=  Ping.averageTime();
     welcome += "ms";
+    welcome += "\n";
+    welcome += "HEAP Size:";
+    welcome += ESP.getHeapSize();  
     welcome += "\nRemaining free mem:";
     welcome += ESP.getFreeHeap();
+    welcome += "\n";
+    welcome += "PSRAM Size:";
+    welcome += ESP.getPsramSize();  
+    welcome += "\nFree PSRAM:";
+    welcome += ESP.getFreePsram();
     welcome += "\n";
     welcome += "Millis: ";
     welcome += millis();
@@ -212,10 +303,13 @@ Ping.ping("google.com");
       welcome += "/ledoff: Para desligar o LED\n";
       welcome += "/status : STATUS\n";
       welcome += "/start : Abre esse menu\n";
+       welcome += "/restart : Reinicia o Controlador\n";
+       welcome += "/deletalog : Deleta o log\n";
        welcome += "Acesse o ip http://";
       welcome +=  WiFi.localIP().toString(); 
       welcome += "\n";
       welcome += "Para mais controles e vizualizar o historico dos sensores\n";
+      welcome += "\n";
       welcome += "Codigo fonte em https://github.com/santocyber/MushLight\n";
      
 
@@ -223,5 +317,6 @@ Ping.ping("google.com");
       }
 
    }
+
 
 }

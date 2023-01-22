@@ -1,26 +1,63 @@
 
 
+void tele(void * parameter){
+    readTel();
+    vTaskDelete(NULL);
+}
+
+
+void connect()//Funçao para Conectar ao wifi e verificar à conexao.
+{
+   if (WiFi.status() != WL_CONNECTED)//Caso nao esteja conectado ao WiFi, Ira conectarse
+   {
+    WiFi.begin(ssid.c_str(), pass.c_str());
+    //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+    client.setHandshakeTimeout(120000);
+
+    delay(10);
+   }
+}
 
 
 
-void handleNewMessages(int numNewMessages) {
+void readTel() {
   //Serial.println("handleNewMessages");
   //Serial.println(String(numNewMessages));
 
-  for (int i = 0; i < numNewMessages; i++) {
+  Serial.print("Task Tele running on core ");
+   Serial.println(xPortGetCoreID());
+  
+   int newmsg = bot.getUpdates(bot.last_message_received + 1);
+//   int msgtxt = bot.getUpdates(bot.last_message_received);
+ //  String msgtele = bot.messages[1].text;
+
+   for (int i = 0; i < newmsg; i++)//Caso haja X mensagens novas, fara este loop X Vezes.
+   {
+    
     chat_id = String(bot.messages[i].chat_id);
     String text = bot.messages[i].text;
     String from_name = bot.messages[i].from_name;
  
-    Serial.printf("\nGot a message %s\n", text);
+    Serial.printf("\nPeguei a mensagem %s\n", text);
 
    
-    if (from_name == "") from_name = "Guest";
 
-    String hi = "Vc disse isso mesmo? Vou executar! ";
+   
+    if (from_name == "") from_name = "Cade o nick?";
+
+    String hi = nomedobot.c_str(); 
+    hi += ":";
+    hi += "Vc disse isso mesmo?";
+    hi += "\n";
     hi += text;
+    hi += "\n";
+    hi += "Vou executar!";
+      
     bot.sendMessage(chat_id, hi, "Markdown");
-    client.setHandshakeTimeout(120000);
+
+
+
+
     if (text.indexOf("/flash") > -1)//Caso o texto recebido contenha  blablabla      
     {
       flashState = !flashState;
@@ -100,7 +137,7 @@ void handleNewMessages(int numNewMessages) {
     */
 
 
-    for (int j = 0; j < 4; j++) {
+    for (int j = 0; j < 2; j++) {
     camera_fb_t * newfb = esp_camera_fb_get();
     if (!newfb) {
       Serial.println("Camera Capture Failed");
@@ -220,32 +257,41 @@ void handleNewMessages(int numNewMessages) {
 
 
     else if (text.indexOf("/clip") > -1){
+      
+  avi_enabled = true;
 
       // record the video
       bot.longPoll =  0;
+      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
 
-      xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 1);
+     // xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 1);
     //  xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
 
-      if ( the_camera_loop_task == NULL ) {
+      if ( the_camera_loop == NULL ) {
         //vTaskDelete( xHandle );
-        Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop_task);
+        Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop);
       }
+        avi_enabled = false;
+
     }
 
+    else if (text.indexOf("/video") > -1){
+ //     xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+
+   // video_ready = true;
+    }
 
     else if (text.indexOf("/server") > -1){
 
-    if (cam == "on"){
-      cam = "off";
+    if (camserver == "on"){
+      camserver = "off";
  //stopCameraServer();
   
     bot.sendMessage(chat_id, "Servidor off", "Markdown");  
-      server.end();
-  //    client.flush();
+ 
       
     }else{
-cam = "on";
+camserver = "on";
 
     String welcome = "MushCam bot.\n\n";
       
@@ -261,40 +307,7 @@ cam = "on";
 client.flush();
 //client.stop();
  //startCameraServer();
-      
-    // Route for root / web page
-    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
-      request->send(SPIFFS, "/index.html", "text/html", false);
-    });
-    server.serveStatic("/", SPIFFS, "/");
-
-      server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
-  capturePhotoSaveSpiffs();
-//    request->send_P(200, "text/plain", "Taking Photo");
-    request->send(SPIFFS, "/index.html", "text/html", false);
-  });
-
-     server.on("/saved-photo", HTTP_GET, [](AsyncWebServerRequest * request) {
-
-
-//    request->send_P(200, "text/plain", "Taking Photo");
-//    request->send(SPIFFS, "/index.html", "text/html", false, processor);
-       request->send(SPIFFS, FILE_PHOTO, "image/jpg", false);
-  });
-
-
-     
-
-        
-    
-     server.begin();
-
-
-
-
-
-
-
+   
       
       
     }

@@ -1,6 +1,15 @@
 //tAKE A PICTURIII
 
 
+
+void foto(void * parameter){
+  capturePhotoSaveSpiffs();
+    vTaskDelete(NULL);
+}
+
+
+
+
 // Check if photo capture was successful
 bool checkPhoto( fs::FS &fs ) {
   File f_pic = fs.open( FILE_PHOTO );
@@ -13,6 +22,12 @@ bool checkPhoto( fs::FS &fs ) {
 
 // Capture Photo and Save it to SPIFFS
 void capturePhotoSaveSpiffs( void ) {
+
+
+  Serial.print("Task CAM running on core ");
+   Serial.println(xPortGetCoreID());
+  
+  
   camera_fb_t * fb = NULL; // pointer
   bool ok = 0; // Boolean indicating if the picture has been taken correctly
 
@@ -56,6 +71,61 @@ delay(200);
     ok = checkPhoto(SPIFFS);
   } while ( !ok );
 }
+
+
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+// Make the avi functions
+//
+//   start_avi() - open the file and write headers
+//   another_pic_avi() - write one more frame of movie
+//   end_avi() - write the final parameters and close the file
+
+
+char devname[30];
+
+
+camera_fb_t * fb_curr = NULL;
+camera_fb_t * fb_next = NULL;
+
+#define fbs 8 // how many kb of static ram for psram -> sram buffer for sd write - not really used because not dma for sd
+
+char avi_file_name[100];
+long avi_start_time = 0;
+long avi_end_time = 0;
+int start_record = 0;
+long current_frame_time;
+long last_frame_time;
+
+static int i = 0;
+uint16_t frame_cnt = 0;
+uint16_t remnant = 0;
+uint32_t length = 0;
+uint32_t startms;
+uint32_t elapsedms;
+uint32_t uVideoLen = 0;
+
+unsigned long movi_size = 0;
+unsigned long jpeg_size = 0;
+unsigned long idx_offset = 0;
+
+uint8_t zero_buf[4] = {0x00, 0x00, 0x00, 0x00};
+uint8_t dc_buf[4] = {0x30, 0x30, 0x64, 0x63};    // "00dc"
+uint8_t avi1_buf[4] = {0x41, 0x56, 0x49, 0x31};    // "AVI1"
+uint8_t idx1_buf[4] = {0x69, 0x64, 0x78, 0x31};    // "idx1"
+
+struct frameSizeStruct {
+  uint8_t frameWidth[2];
+  uint8_t frameHeight[2];
+};
+
+
+
+
+
+
 
 //  data structure from here https://github.com/s60sc/ESP32-CAM_MJPEG2SD/blob/master/avi.cpp, extended for ov5640
 
@@ -202,15 +272,6 @@ camera_fb_t *  get_good_jpeg() {
 
 void the_camera_loop (void* pvParameter) {
 
-  vid_fb = get_good_jpeg(); // esp_camera_fb_get();
-  if (!vid_fb) {
-    Serial.println("Camera capture failed");
-    //bot.sendMessage(chat_id, "Camera capture failed", "");
-    return;
-  }
-  picture_ready = true;
-
-  if (avi_enabled) {
     frame_cnt = 0;
 
     ///////////////////////////// start a movie
@@ -228,7 +289,7 @@ void the_camera_loop (void* pvParameter) {
       current_frame_time = millis();
 
       if (current_frame_time - last_frame_time < frame_interval) {
-        if (frame_cnt < 5 || frame_cnt > (max_frames - 5) )Serial.printf("frame %d, delay %d\n", frame_cnt, (int) frame_interval - (current_frame_time - last_frame_time));
+        if (frame_cnt < 25 || frame_cnt > (max_frames - 25) )Serial.printf("frame %d, delay %d\n", frame_cnt, (int) frame_interval - (current_frame_time - last_frame_time));
         delay(frame_interval - (current_frame_time - last_frame_time));             // delay for timelapse
       }
 
@@ -263,10 +324,22 @@ void the_camera_loop (void* pvParameter) {
     Serial.printf("End the avi at %d.  It was %d frames, %d ms at %.2f fps...\n", millis(), frame_cnt, avi_end_time - avi_start_time, fps);
     frame_cnt = 0;             // start recording again on the next loop
     video_ready = true;
+  
+  vid_fb = get_good_jpeg(); // esp_camera_fb_get();
+  if (!vid_fb) {
+    Serial.println("Camera capture failed");
+    //bot.sendMessage(chat_id, "Camera capture failed", "");
+    return;
   }
+  picture_ready = true;
+
+
+  
   Serial.println("Deleting the camera task");
   delay(100);
-  vTaskDelete(the_camera_loop_task);
+ // vTaskDelete(the_camera_loop_task);
+    vTaskDelete(NULL);
+
 }
 
 
@@ -281,7 +354,7 @@ void start_avi() {
 
   time(&now);
   localtime_r(&now, &timeinfo);
-  strftime(strftime_buf, sizeof(strftime_buf), "DoorCam %F %H.%M.%S.avi", &timeinfo);
+  strftime(strftime_buf, sizeof(strftime_buf), "MushCam%F%H.%M.%S.avi", &timeinfo);
 
   //memset(psram_avi_buf, 0, avi_buf_size);  // save some time
   //memset(psram_idx_buf, 0, idx_buf_size);
@@ -388,8 +461,8 @@ void end_avi() {
 
   Serial.println("End of avi - closing the files");
 
-  if (frame_cnt <  5 ) {
-    Serial.println("Recording screwed up, less than 5 frames, forget index\n");
+  if (frame_cnt <  25 ) {
+    Serial.println("Recording screwed up, less than 10 frames, forget index\n");
   } else {
 
     elapsedms = millis() - startms;
@@ -489,12 +562,13 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
       digitalWrite(33, HIGH);
       Serial.print("PIR Interupt ... start recording ... ");
 
+      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
 
-      xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
+   //   xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
       //xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
 
-      if ( the_camera_loop_task == NULL ) {
-        Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop_task);
+      if ( the_camera_loop == NULL ) {
+        Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop);
       }
 
     }
@@ -541,7 +615,7 @@ void send_the_video() {
   avi_len = psram_avi_ptr - psram_avi_buf;
 
   String sent2 = bot.sendMultipartFormDataToTelegramWithCaption("sendDocument", "document", strftime_buf,
-                 "image/jpeg", "Intruder alert!", chat_id, psram_avi_ptr - psram_avi_buf,
+                 "image/jpeg", "MushCAM alertaaa!", chat_id, psram_avi_ptr - psram_avi_buf,
                  avi_more, avi_next, nullptr, nullptr);
 
   Serial.println("done!");

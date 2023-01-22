@@ -1,12 +1,6 @@
 //Codigo disponivel no github desenvolvido por @SantoCyber
-//#define _DISABLE_TLS_
 #include <WiFi.h>
-#include "esp_camera.h"
-#include "img_converters.h"
 #include "Arduino.h"
-#include "soc/soc.h"           // Disable brownour problems
-#include "soc/rtc_cntl_reg.h"  // Disable brownour problems
-#include "driver/rtc_io.h"
 #include <StringArray.h>
 #include <Wire.h>
 #include <ESPAsyncWebServer.h>
@@ -39,13 +33,23 @@
 #include <ESP32Ping.h>
   uint32_t notConnectedCounter = 0;
 
+#include <soc/rtc_wdt.h>
+#include <esp_task_wdt.h>
+#include "soc/rtc_cntl_reg.h"  // Disable brownour problems
+#include "soc/soc.h"           // Disable brownour problems
+#include "sdkconfig.h"
+#include "driver/rtc_io.h"
+#include <esp_system.h>
+#include <nvs_flash.h>
+#include "esp_camera.h"
+
+#define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
+
+
+//################################################################################Task handle 
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include <soc/rtc_wdt.h>
-#include <esp_task_wdt.h>
-
-
 
 //#####Configura data logger
 String    time_now;
@@ -66,16 +70,6 @@ const int httpsPort = 443;
 
 //##########Configura cam
 boolean takeNewPhoto = false;
-//boolean dataAvailable = false;
-
-// Keep track of number of pictures
-unsigned int pictureNumber = 0;
-String path = "";
-String lastPhoto = "";
-String cam;
-
-camera_fb_t *fb = NULL;
-
 
 
 const long gmtOffset_sec = 3600 * 10;
@@ -84,7 +78,20 @@ const int daylightOffset_sec = 3600;
 const char* ntpServer = "pool.ntp.org";
 
 
-//CAMERA_MODEL_AI_THINKER
+static const char vernum[] = "MushLightCAM0.1V";
+
+
+/*
+int max_frames = 150;
+framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
+int frame_interval = 0;          // 0 = record at full speed, 100 = 100 ms delay between frames
+float speed_up_factor = 0.5;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
+int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
+int quality = 10;
+int qualityconfig = 5;
+
+/*
+/// defined(CAMERA_MODEL_ESP32S3_EYE)
 #define PWDN_GPIO_NUM    -1
 #define RESET_GPIO_NUM   -1
 #define XCLK_GPIO_NUM    21
@@ -103,22 +110,18 @@ const char* ntpServer = "pool.ntp.org";
 #define HREF_GPIO_NUM    23
 #define PCLK_GPIO_NUM    22
 
-
-
-// Photo File Name to save in SPIFFS
-//#define FILE_PHOTO "/photo.jpg"
-
+*/
 
 //##########CONFIG TEXTO
 String runningText = "MushLight";
 
 
-//#############Configura GPI0
-
+//#############################################################################Configura GPI0
 
 #define LED_PIN 32
 #define MQ_analog 33
-const int vibra = 34;//pino 34
+const int vibra = 34;
+
 
 
 //config BMP
@@ -195,10 +198,6 @@ String veloframe;
 String dimmervar;
 
 
-
-
-
-WiFiClientSecure client;
 HTTPClient http;
 
 
@@ -217,7 +216,7 @@ const int udpPort = 3333;
 
 //##configura o millis
 unsigned long tempo = millis();
-unsigned long tempo2 = millis();
+unsigned long tempoverifica = millis();
 unsigned long tempo3 = millis();
 unsigned long tempo4 = millis();
 unsigned long tempo5 = millis();
@@ -227,6 +226,7 @@ unsigned long tempo8 = millis();
 unsigned long tempo9 = millis();
 unsigned long tempo10 = millis();
 unsigned long tempoping = millis();
+unsigned long tempotelegram = millis();
 
 //######Config sleep
 unsigned long temposleep0;
@@ -281,6 +281,11 @@ uint32_t autoplayTimer;
 #define TEXT_HEIGHT 0     
 #define WIDTHX WIDTH       //configura texto pixels
 #define HEIGHTX HEIGHT
+
+#define LET_WIDTH 5       // ширина буквы шрифта
+#define LET_HEIGHT 7      // высота буквы шрифта
+#define SPACE 0           // пробел
+
 
 //configura gif
 #define FRAME_WIDTH WIDTH 
@@ -496,12 +501,13 @@ String TTT = tokentelegram.c_str();
 return TTT; 
 }
 String TOKEN = TOKEN2();
-#include <UniversalTelegramBot.h>
+//#include <UniversalTelegramBot.h>
+#include "UniversalTelegramBot.h"
 #define tokentele TOKEN
+
+WiFiClientSecure client;
+
 UniversalTelegramBot bot(tokentele, client);
-
-
-
 
 
 
@@ -534,9 +540,9 @@ bool initWiFi() {
   
     timeClient.begin();
     timeClient.update();
-    readTel();
-    verifica();
-    verifica2();
+  //  readTel(void * pvParameters );
+  //  verifica();
+  //  verifica2();
     StartTime();
 
 
@@ -575,14 +581,14 @@ bool initWiFi() {
 
 
 
-////############################Le sensores
+////#############################################################################Le sensores
 
 
  String readCO2() {
 
-  float t = analogRead(MQ_analog);
+  float c = analogRead(MQ_analog);
 
-    return String(t);
+    return String(c);
 }
 
 
@@ -653,13 +659,12 @@ String processor(const String& var){
   }
   return String();
 }
-
+/*
 
 bool setupCamera()
 {
   camera_config_t config;
-
-  config.ledc_channel = LEDC_CHANNEL_0;
+ config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
   config.pin_d1 = Y3_GPIO_NUM;
@@ -678,83 +683,75 @@ bool setupCamera()
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
-  config.pixel_format = PIXFORMAT_JPEG;
-  
+ // config.frame_size = FRAMESIZE_QVGA;
+  config.pixel_format = PIXFORMAT_JPEG; // for streaming
+  //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-config.fb_location = CAMERA_FB_IN_PSRAM;
-
-const int pwmfreq = 50000;     // 50K pwm frequency
-const int pwmresolution = 9;   // duty cycle bit range
-ledcSetup(config.ledc_channel, pwmfreq, pwmresolution);  // configure LED PWM channel
-ledcAttachPin(4, config.ledc_channel);     
-
-
+  config.fb_location = CAMERA_FB_IN_PSRAM;
+//  config.jpeg_quality = 12;
+//  config.fb_count = 1;
+  
   //init with high specs to pre-allocate larger buffers
-  if (psramFound())
-  {
-    config.frame_size = FRAMESIZE_CIF; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
-  }
-  else
-  {
-    config.frame_size = FRAMESIZE_QVGA;
+  if (psramFound()) {
+    config.frame_size = configframesize;
+    config.jpeg_quality = qualityconfig;
+    config.fb_count = 4; 
+  } else {
+    config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
   }
 
+  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
+  //Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
+
+  static char * memtmp = (char *) malloc(32 * 1024);
+  static char * memtmp2 = (char *) malloc(32 * 1024); //32767
 
   // camera init
   esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK)
-  {
+  if (err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x", err);
     return false;
   }
-
-  sensor_t *s = esp_camera_sensor_get();
-  //initial sensors are flipped vertically and colors are a bit saturated
-  if (s->id.PID == OV3660_PID)
-  {
-    s->set_vflip(s, 1);       //flip it back
-    s->set_brightness(s, 1);  //up the blightness just a bit
-    s->set_saturation(s, -2); //lower the saturation
-  }
-  //drop down frame size for higher initial frame rate
-  s->set_framesize(s, FRAMESIZE_QVGA);
+  free(memtmp2);
+  memtmp2 = NULL;
+  free(memtmp);
+  memtmp = NULL;
 
 
+  sensor_t * s = esp_camera_sensor_get();
+
+  //  drop down frame size for higher initial frame rate
+  s->set_framesize(s, (framesize_t)framesize);
+  s->set_quality(s, quality);
+  delay(200);
   return true;
 }
 
+*/
 
 //######################## SETUP
 
 
 void setup() {
-  //desabilita o watchdog configurando o timeout para 4 segundos
+  //desahabilita o watchdog configurando o timeout para 40 segundos
 
-  esp_task_wdt_init(30, false);
+  esp_task_wdt_init(60, true);
+
+xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );     
+     
 
   // Serial port for debugging purposes
-  pinMode(33, OUTPUT);
-   pinMode(MQ_analog, INPUT);
-  // pinMode(vibra, INPUT);
+ //   pinMode(33, OUTPUT);
+ //   pinMode(MQ_analog, INPUT);
+// pinMode(vibra, INPUT);
 
 
-   Serial.begin(115200);
+    Serial.begin(115200);
  
 
-  EEPROM.begin(512);
-
-
-
-
- 
-      // Turn off the flash
-      pinMode(4, OUTPUT);
-   //   digitalWrite(4, LOW);
-      //rtc_gpio_hold_dis(GPIO_NUM_4);
+    EEPROM.begin(512);
 
 
 Serial.setDebugOutput(true);
@@ -765,19 +762,11 @@ Serial.setDebugOutput(true);
 
  
   // Camera init
-if (!setupCamera())
-  {
-    Serial.println("Camera Setup Failed!");
-   
-  }
+//if (!setupCamera())
+//  {
+//    Serial.println("Camera Setup Failed!");
+//  }
 
-
- //init telegram cert
-
-client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
-//client->setTimeout(4000);
-
-client.setTimeout(30000);
 
  
 //########### LED
@@ -788,26 +777,15 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
  // if (CURRENT_LIMIT > 0) FastLED.setMaxPowerInVoltsAndMilliamps(5, CURRENT_LIMIT);
   FastLED.clear();
   FastLED.show();
-  randomSeed(analogRead(0) + analogRead(1));
+  //randomSeed(analogRead(0) + analogRead(1));
 
 
-//inicia sensores tem umi pressao
-  //I2CSensors.begin(I2C_SDA, I2C_SCL, 100000);
 
-
-aht.begin();
-bmp.begin();
-
-
-bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-                  Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-                  Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-                  Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-                  Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
 
  //########################Le arquivos gravados             
+//ja foi iniciado no telegram
 
-  initSPIFFS();
+  //initSPIFFS();
 
   
   // Load values saved in SPIFFS
@@ -828,10 +806,28 @@ bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
 
 
 
+//#########################################################inicia sensores tem umi pressao
+
+aht.begin();
+bmp.begin();
+
+
+
+
+
+
+
+
+
 
   if(initWiFi()) {
 
+delay(200);
+//client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
+ client.setInsecure();
 
+delay(200);
+//client.setTimeout(30000);
        
 
     // Route for root / web page
@@ -948,6 +944,8 @@ FastLED.delay(2000 / velovar);
       // Route to set GPIO state to HIGH
     server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
         verifica2();
+
+ 
         request->send(SPIFFS, "/log.html", "text/html", false);
  
     });
@@ -996,7 +994,8 @@ FastLED.delay(2000 / velovar);
     server.on("/co2", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "co2";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
-    });  
+    }); 
+    
     // Route to set GPIO state to HIGH
     server.on("/humi", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "humi";
@@ -1579,7 +1578,7 @@ FastLED.delay(2000 / velovar);
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
-      request->send(200, "text/plain", "Prontinho. MushLight reiniciando, conecte no seu roteador e veja o ip na sua lista DHCP ou digita /start no telegram pra saber o ip");
+      request->send(200, "text/plain", "Prontinho. MushLight reiniciando, conecte no seu roteador e veja o ip na sua lista DHCP ou digita /start no telegram pra saber o ip, ou aperte o botao atras uma vez para passar o ip");
       delay(3000);
       ESP.restart();
     });
@@ -1595,459 +1594,10 @@ FastLED.delay(2000 / velovar);
 
 void loop() {
 
-uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
 
 
-    if (State == "sleep") {     
-          temposleep1 = millis();
+ifs();
 
-    if (temposleep1 - temposleep0 > settemposleep)//Faz a verificaçao das funçoes a cada 30min
-   {
-    ledState = "ledoff";
-    FastLED.show(); // display this frame
-     State = "acordado";     
-   }
-   }
-
-if (ledState == "ledoff") {
-
-    ledoff();
-        FastLED.show(); // display this frame
-    }
-      if (ledState == "pisca") {
-    pisca();
-    FastLED.show(); // display this frame
-    }      
-    if (ledState == "piscalento") {
-    piscalento();
-    FastLED.show(); // display this frame
-    } 
-  if (ledState == "rainbowon") {
-    rainbowon();
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    } 
-       if (ledState == "rainbow2") {
-    rainbowRoutine();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    }
-  
-  if (ledState == "matrixon") {
-    matrixRoutine();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-} 
-  
-  if (ledState == "pride") {
-    pride();
-     FastLED.show();
-    } 
-
-if (ledState == "green") {
-
-           fill_solid( leds, NUM_LEDS, CRGB::Green);
-
-       
-        FastLED.show(); // display this frame
-    }
-    if (ledState == "blue") {
-    blue();
-        FastLED.show(); // display this frame
-    }
-        if (ledState == "red") {
-    red();
-        FastLED.show(); // display this frame
-    }
- if (ledState == "amarelo") {
- 
-    fill_solid( leds, NUM_LEDS, 0xFFFF00);
-        FastLED.show(); // display this frame
-    }
-
-    
- if (ledState == "colors") {
-      // colorsRoutine();
-// drawLetter(1, "o", 16, 0xF0F8FF);
-    //  drawLetter(uint8_t index, uint8_t letter, int16_t offset, uint32_t color)
-        FastLED.show(); // display this frame
-    }
-
-if (ledState == "ledon") {
-
-
-    fill_solid( leds, NUM_LEDS, corvar);
-//FastLED.setBrightness(dimmervar);
-        FastLED.show(); // display this frame
-    
-    }
-
-    if (ledState == "fire2") {
-    fireRoutine();
-    FastLED.show(); // display this frame
-    }
-
-    if (ledState == "snowon") {
-    snowRoutine();
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    FastLED.show(); // display this frame         
-    }
-    
-    if (ledState == "temp") {
-    fillString(readDHTTemperature() + "C", 0x0000FF);
-        FastLED.show(); // display this frame
-    }
-                 if (ledState == "co2") {
-    fillString(readCO2()+ "PPM", 0x00FFFF);
-        FastLED.show(); // display this frame
-    }
-                 if (ledState == "humi") {
-    fillString(readDHTHumidity() + "%", 0xFFFF00);
-        FastLED.show(); // display this frame
-    }
-        if (ledState == "pressao") {
-    fillString(readDHTPressao(), 0xFF6347);
-    FastLED.show(); // display this frame
-    }
-    if (ledState == "clima") {
-    fillString("||T" + readDHTTemperature() + "C||CO2" + readCO2()+ "PPM||ATM" + readDHTPressao() + "Pa ||Umid" + readDHTHumidity() + "%", 1);
-    FastLED.show(); // display this frame
-    }
-    
-    if (ledState == "cronometro") {
-   // cronometro();
-    fillString(crono(), corvar);
-
-    FastLED.show(); // display this frame
-    //FastLED.setBrightness(dimmervar);
-    }
-    if (ledState == "clock") {
-FastLED.clear();
-   timeClient.update();
-
-    fillString(timeClient.getFormattedTime(), corvar);
-    FastLED.show(); // display this frame
-    //FastLED.setBrightness(dimmervar);
-    }
-        if (ledState == "dia") {
-
- 
-    fillString(timeClient.getFormattedTime(), corvar);
-    FastLED.show(); // display this frame
-    //FastLED.setBrightness(dimmervar);
-    }
-        if (ledState == "data") {
-time_t now = time(nullptr);
- time_now = String(ctime(&now)).substring(0,24);
-    fillString(time_now, corvar);
-    FastLED.show(); // display this frame
-    //FastLED.setBrightness(dimmervar);
-    }
- 
- 
-
-   if (ledState == "zebra") {
-    zebraNoise();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    }
-    
-   if (ledState == "plasma") {
-    plasmaNoise();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-       }
-       if (ledState == "gif") {
-animation(1);
-        FastLED.show(); // display this frame
-    }
-     if (ledState == "gif2") {
-animation(2);
-        FastLED.show(); // display this frame
-    }
-     if (ledState == "gif3") {
-animation(3);
-        FastLED.show(); // display this frame
-    }
-
-     if (ledState == "gif4") {
-animation(4);
-        FastLED.show(); // display this frame
-    }
-         if (ledState == "gif5") {
-animation(5);
-        FastLED.show(); // display this frame
-    }
-      if (ledState == "gif6") {
-animation(6);
-        FastLED.show(); // display this frame
-    }
-         if (ledState == "gif7") {
-animation(7);
-        FastLED.show(); // display this frame
-    }
-         if (ledState == "gif8") {
-animation(8);
-        FastLED.show(); // display this frame
-    }
-             if (ledState == "gif9") {
-animation(9);
-        FastLED.show(); // display this frame
-    }
-           if (ledState == "oceano") {
-oceanNoise();
-        FastLED.show(); // display this frame
-    }
-
-               if (ledState == "forest") {
-    forestNoise();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-    }
-                   if (ledState == "madness") {
-    madnessNoise();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    }
-                   if (ledState == "lava") {
-    lavaNoise();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-    }
-                   if (ledState == "balls") {
-    lightBallsRoutine();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-    }
-                   if (ledState == "swirl") {
-     swirlRoutine();
-     FastLED.show(); // display this frame
-     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-    }
-                   if (ledState == "tetris") {
-    tetrisRoutine();
-    FastLED.show(); // display this frame
-    }
-                   if (ledState == "snake") {
-    snakeRoutine();
-    FastLED.show(); // display this frame
-    }
-                       if (ledState == "arkanoid") {
-    arkanoidRoutine();
-    FastLED.show(); // display this frame
-    } 
-    if (ledState == "runningtext") {
-    fillString(txt,corvar);
-    FastLED.show(); // display this frame
-    }
-    if (ledState == "telegram") {
-    fillString(text,2);
-    FastLED.show(); // display this frame
-    }
-        if (ledState == "btc") {
-
-  if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(1, btc());
-      tempo5 = millis();
-   }
-    fillString(EEPROM.readString(1),corvar);
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-    }
-            if (ledState == "eth") {
-    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(2, eth());
-      tempo5 = millis();
-     
-   }
-    fillString(EEPROM.readString(2),corvar);
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
- }
-
-  if (ledState == "ltc") {
-           
-  if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(3, ltc());
-      tempo5 = millis();
-     
-   }
-   fillString(EEPROM.readString(3),corvar);
-    FastLED.show(); // display this frame
-}
-             if (ledState == "shiba") {
-    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(4, shiba());
-      tempo5 = millis();
-     
-   }
-   fillString(EEPROM.readString(4),corvar);
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    } 
-                if (ledState == "xmr") {
-    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(5, xmr());
-      tempo5 = millis();
-     
-   }
-   fillString(EEPROM.readString(5),corvar);
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    } 
-                if (ledState == "doge") {
-    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(6, doge());
-      tempo5 = millis();
-     
-   }
-   fillString(EEPROM.readString(6),corvar);
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    } 
-                if (ledState == "dolar") {
-    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
-   {
-      EEPROM.writeString(7, dolar());
-      tempo5 = millis();
-     
-   }
-   fillString(EEPROM.readString(7),corvar);
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    } 
-        if (ledState == "spark") {
-    sparklesRoutine();
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    }
-       if (ledState == "star") {                
-   starfallRoutine();
-   FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   FastLED.show(); // display this frame
-    }
-        if (ledState == "pacifica") {
-    pacifica_loop();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-    }
-        if (ledState == "spiral") {
-    ballRoutine();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-}
-        if (ledState == "rainbowstrip") {
-    rainbowStripeNoise();
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   }
-    
-        if (ledState == "light") {
-   lightersRoutine();
-   FastLED.show(); // display this frame
-   FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-  }
-           if (ledState == "bpm") {
-    bpm();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-   }
-   if (ledState == "sinelon") {
-    sinelon();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   }
-   if (ledState == "confetti") {
-    confetti();
-    FastLED.show(); // display this frame
-    FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-   }
-      if (ledState == "juggle") {
- juggle();
-  FastLED.show(); // display this frame
-             FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-   }
-   if (ledState == "rainbowgliter") {
- rainbowWithGlitter();
-  FastLED.show(); // display this frame
-            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-
-   }
-   
-        if (ledState == "runner") {
- runnerRoutine();
-  FastLED.show(); // display this frame
- //FastLED.delay(2000 / veloframe);
-   }
-           if (ledState == "newone") {
- newone();
-  FastLED.show(); // display this frame
-            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   }
-              if (ledState == "spiralone") {
-   spiralone();
-  FastLED.show(); // display this frame
-            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   }
-                 if (ledState == "spiraltwo") {
-   spiraltwo();
-  FastLED.show(); // display this frame
-            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   }
-
-              if (ledState == "papainoel") {
-  draw(); 
-
-    FastLED.show(); // display this frame
-
-                if (millis() - tempo10 > 30000)//Faz a verificaçao das funçoes a cada 30min
-   {
-
-  draw();
-
-   if (eff >= 3) {
-      eff = 0;
-    } else {
-      eff += 1;
-    }
-    
-  //static int frame = 0;
-  //if (frame++ % 32 == 0)
-  //  Serial.println(FastLED.getFPS());
-  FastLED.show(); // display this frame
-
-    tempo10 = millis();
-     
-   }
-
-  }
-
-              if (ledState == "dots") {
-   dots();
-  FastLED.show(); // display this frame
-            FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
-   }
-
-    if (ledState == "credito") {
-    fillString("Obrigado @SantoCyber faz um pix rastanerdi@gmail.com",1);
-    FastLED.show(); // display this frame
-    }
-
-    if (ledState == "ip") {
-    fillString(WiFi.localIP().toString(), 0x0000FF);
-        FastLED.show(); // display this frame
-    }    
 
 
  //##Loop paralelo
@@ -2063,43 +1613,61 @@ oceanNoise();
    }
 
 
-if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 30min
+if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
    {
-    //#### Grava o LOG em JSON
-verifica2(); 
+      //#### Grava o LOG em JSON
+      verifica2(); 
       tempo8 = millis();
      
    }
 
 
-//#####Configura  loop telegram 
-   if (millis() - tempo > 5000)//Faz a verificaçao das funçoes a cada 2 Segundos
-    {
-      connect();//Funçao para verificar se ainda há conexao
-      readTel();//Funçao para ler o telegram
-      tempo = millis();//Reseta o tempo
-     
-   }
-
-  if (millis() - tempo2 > 1800000)//Faz a verificaçao das funçoes a cada 30min
+//1200000
+  if (millis() - tempoverifica > 1800000)//Faz a verificaçao das funçoes a cada 30min
    {   //tira foto e manda clima no telegram
-      verifica();
-      tempo2 = millis();
+      connect();
+    xTaskCreate(tele,"READ TEL", 40000, NULL, 0, NULL);     
+        xTaskCreate(verifica1,"VERIFICA1", 10000, NULL, 0, NULL);     
+
+    //  verifica();
+      tempoverifica = millis();
      
    }
 
      if (millis() - tempo3 > 100)//Faz a verificaçao das funçoes a cada 30min
    {
-      readVibra();
+    //  readVibra();
       tempo3 = millis();
      
    }
 
-  digitalWrite(33, LOW);
+     if (millis() - tempoping > 300000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      connect();
+      pingando();
+      tempoping = millis();
+     
+   }
+
+
+     if (millis() - tempotelegram > 5000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      connect();
+      //readTel();
+    xTaskCreate(tele,"READ TEL", 40000, NULL, 0, NULL);     
+
+    
+      tempotelegram = millis();
+     
+   }
+
+
+
   
     if (takeNewPhoto) {
     delay(200);
-    capturePhotoSaveSpiffs();
+
+     //   xTaskCreate(camera,"TAKE A PICTURE", 40000, NULL, 0, NULL);     
 
     takeNewPhoto = false;
      delay(600);
@@ -2107,32 +1675,9 @@ verifica2();
   delay(50);
 
 
-  if (millis() - tempoping > 20000)//Faz a verificaçao das funçoes a cada 30min
-   { 
 
-//#################################################################PING WDT
-    if(Ping.ping("google.com")) {
- Serial.println("Ping pong OK contando....");
-    Serial.print(Ping.averageTime());
-    Serial.println(" ms");
-    Serial.printf("\n%lu: Remaining free mem: %u\n", millis(), ESP.getFreeHeap());
 
-      }
 
-else{ 
-      notConnectedCounter++;
-          Serial.println("Falha do ping da internet, contando...");
-          Serial.println(notConnectedCounter);
 
-    if(notConnectedCounter > 50) { // Reset a placa apos 50 erros    
-    Serial.println("Reiniciando esp por falha na internet");
-    
-          ESP.restart();
-     
-   }
-   }
-   
-   tempoping = millis();
-   }
-  
+
 }

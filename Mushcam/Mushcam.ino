@@ -19,13 +19,25 @@
 
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+//#include <WiFiClient.h>
+
 #include "esp_camera.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
-//#include <SafeString.h>
 #include <Arduino.h>
+#include <ArduinoJson.h>
 
-//#include <String.h>
+#include <soc/rtc_wdt.h>
+#include <esp_task_wdt.h>
+
+
+
+#include "esp_wifi.h"
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
+#include <ESPmDNS.h>
+
+
 
 
 //By SantoCyber Captiveportal
@@ -35,9 +47,11 @@
 
 void startCameraServer();
 void stopCameraServer();
-String cam = "on";
+String camserver = "off";
 long timecam;   
 long timefoto;
+long tempotelegram;
+long tempostream;
 
 // Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
@@ -46,21 +60,25 @@ AsyncWebServer server(80);
 const char* PARAM_INPUT_1 = "ssid";
 const char* PARAM_INPUT_2 = "pass";
 const char* PARAM_INPUT_5 = "tokentelegram";
+const char* PARAM_INPUT_14 = "nomedobot";
 
 
 //Variables to save values from HTML form
 String ssid;
 String pass;
 String tokentelegram;
+String nomedobot;
+
 
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
 const char* passPath = "/pass.txt";
+const char* nomedobotPath = "/nomedobot.txt";
 const char* tokentelegramPath = "/tokentelegram.txt";
 const char* FILE_PHOTO = "/photo.jpg";
 
 
-
+//#####################################################################Config streming
 
 
 //################### Arquivos 
@@ -145,39 +163,25 @@ return TTT;
 }
 String TOKEN = TOKEN2();
 
-//#include "UniversalTelegramBot.h"
 #define BOTtoken TOKEN
-
-
-//################################################################
-
-
-// ----------------------------
-// Additional Libraries - each one of these will need to be installed.
-// ----------------------------
 
 //#include <UniversalTelegramBot.h>
 #include "UniversalTelegramBot.h"  // use local library which is a modified copy of an old version
-// Library for interacting with the Telegram API
-// Search for "Telegegram" in the Library manager and install
-// The universal Telegram library
-// https://github.com/witnessmenow/Universal-Arduino-Telegram-Bot
-
-#include <ArduinoJson.h>
-// Library used for parsing Json from the API responses
-// Search for "Arduino Json" in the Arduino Library manager
-// https://github.com/bblanchon/ArduinoJson
-
 
 static const char vernum[] = "MushCAM0.1V";
 String devstr =  "mushcambysantocyber";
-int max_frames = 50;
+int max_frames = 500;
+int frame_interval = 500;          // 0 = record at full speed, 100 = 100 ms delay between frames
+float speed_up_factor = 1;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
+
 framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-int frame_interval = 0;          // 0 = record at full speed, 100 = 100 ms delay between frames
-float speed_up_factor = 0.5;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
 int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
-int quality = 10;
-int qualityconfig = 5;
+int quality = 0.5;
+int qualityconfig = 10;
+
+
+struct tm timeinfo;
+time_t now;
 
 // Initialize Wifi connection to the router and Telegram BOT
 
@@ -236,15 +240,19 @@ bool setupCamera() {
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
+    config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   //init with high specs to pre-allocate larger buffers
   if (psramFound()) {
+      config.fb_location = CAMERA_FB_IN_PSRAM;
     config.frame_size = configframesize;
     config.jpeg_quality = qualityconfig;
     config.fb_count = 4; 
+        config.grab_mode = CAMERA_GRAB_LATEST;
   } else {
     config.frame_size = FRAMESIZE_SVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
+      config.fb_location = CAMERA_FB_IN_DRAM;
   }
 
   //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
@@ -266,12 +274,17 @@ bool setupCamera() {
   //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
   //Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
 
-  sensor_t * s = esp_camera_sensor_get();
+ // sensor_t * s = esp_camera_sensor_get();
 
   //  drop down frame size for higher initial frame rate
-  s->set_framesize(s, (framesize_t)framesize);
-  s->set_quality(s, quality);
+ // s->set_framesize(s, (framesize_t)framesize);
+ // s->set_quality(s, quality);
   delay(200);
+
+
+  //  cam.init(config);
+
+  
   return true;
 }
 
@@ -289,15 +302,15 @@ bool flashState = LOW;
 camera_fb_t * fb = NULL;
 camera_fb_t * vid_fb = NULL;
 
-TaskHandle_t the_camera_loop_task;
-void the_camera_loop (void* pvParameter) ;
+//TaskHandle_t the_camera_loop_task;
+//void the_camera_loop (void* pvParameter) ;
 static void IRAM_ATTR PIR_ISR(void* arg) ;
 
 bool video_ready = false;
 bool picture_ready = false;
 bool active_interupt = false;
-bool pir_enabled = false;
-bool avi_enabled = false;
+bool pir_enabled = true;
+bool avi_enabled = true;
 
 int avi_buf_size = 0;
 int idx_buf_size = 0;
@@ -344,63 +357,12 @@ uint8_t * psram_avi_ptr = 0;
 uint8_t * psram_idx_ptr = 0;
 char strftime_buf[64];
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//
-// Make the avi functions
-//
-//   start_avi() - open the file and write headers
-//   another_pic_avi() - write one more frame of movie
-//   end_avi() - write the final parameters and close the file
-
-
-char devname[30];
-
-struct tm timeinfo;
-time_t now;
-
-camera_fb_t * fb_curr = NULL;
-camera_fb_t * fb_next = NULL;
-
-#define fbs 8 // how many kb of static ram for psram -> sram buffer for sd write - not really used because not dma for sd
-
-char avi_file_name[100];
-long avi_start_time = 0;
-long avi_end_time = 0;
-int start_record = 0;
-long current_frame_time;
-long last_frame_time;
-
-static int i = 0;
-uint16_t frame_cnt = 0;
-uint16_t remnant = 0;
-uint32_t length = 0;
-uint32_t startms;
-uint32_t elapsedms;
-uint32_t uVideoLen = 0;
-
-unsigned long movi_size = 0;
-unsigned long jpeg_size = 0;
-unsigned long idx_offset = 0;
-
-uint8_t zero_buf[4] = {0x00, 0x00, 0x00, 0x00};
-uint8_t dc_buf[4] = {0x30, 0x30, 0x64, 0x63};    // "00dc"
-uint8_t avi1_buf[4] = {0x41, 0x56, 0x49, 0x31};    // "AVI1"
-uint8_t idx1_buf[4] = {0x69, 0x64, 0x78, 0x31};    // "idx1"
-
-struct frameSizeStruct {
-  uint8_t frameWidth[2];
-  uint8_t frameHeight[2];
-};
 
 
 
 
-
-#include "esp_wifi.h"
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
-#include <ESPmDNS.h>
-
+unsigned long previousMillis = 0;
+const long interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
 
 IPAddress localIP;
 //IPAddress localIP(192, 168, 1, 200); // hardcoded
@@ -410,10 +372,6 @@ IPAddress localGateway;
 //IPAddress localGateway(192, 168, 1, 1); //hardcoded
 IPAddress subnet(255, 255, 0, 0);
 IPAddress primaryDNS(8, 8, 8, 8); //nao nao eh opcional nao, eh obrigatorio demorei mt tempo pra perceber q o relogio e o telegram n tava funcionando por causa do dns
-
-unsigned long previousMillis = 0;
-const long interval = 10000;  // interval to wait for Wi-Fi connection (milliseconds)
-
 
 
 
@@ -430,15 +388,10 @@ bool init_wifi() {
   Serial.println(ssid);
 
   // Set WiFi to station mode and disconnect from an AP if it was Previously connected
-  devstr.toCharArray(devname, devstr.length() + 1);        // name of your camera for mDNS, Router, and filenames
+  //devstr.toCharArray(devname, devstr.length() + 1);        // name of your camera for mDNS, Router, and filenames
   WiFi.mode(WIFI_STA);
-  WiFi.setHostname(devname);
- // localIP.fromString(ip.c_str());
- // localGateway.fromString(gateway.c_str());
-  // if (!WiFi.config(localIP, localGateway, subnet,primaryDNS)){
-  //  Serial.println("STA Failed to configure");
-  //  return false;
-//    }
+  WiFi.setHostname(nomedobot.c_str());
+
     WiFi.begin(ssid.c_str(), pass.c_str());
 
   
@@ -471,11 +424,11 @@ bool init_wifi() {
   setenv("TZ", tzchar, 1);  // mountain time zone from #define at top
   tzset();
 
-  if (!MDNS.begin(devname)) {
+  if (!MDNS.begin(nomedobot.c_str())) {
     Serial.println("Error setting up MDNS responder!");
     return false;
   } else {
-    Serial.printf("mDNS responder started '%s'\n", devname);
+    Serial.printf("mDNS responder started '%s'\n", nomedobot.c_str());
   }
   time(&now);
 
@@ -490,6 +443,12 @@ bool init_wifi() {
 //////////////////////////////////////////////////////////////////////////////////////
 
 void setup() {
+  //desahabilita o watchdog configurando o timeout para 40 segundos
+
+  esp_task_wdt_init(30, true);
+
+
+  
   Serial.begin(115200);
   Serial.println("---------------------------------");
   Serial.printf("MushCAM bot %s\n", vernum);
@@ -507,21 +466,38 @@ void setup() {
   pinMode(33, OUTPUT);             // little red led on back of chip
   digitalWrite(33, LOW);           // turn on the red LED on the back of chip
 
-  avi_buf_size = 3000 * 1024; // = 3000 kb = 60 * 50 * 1024;
-  idx_buf_size = 200 * 10 + 20;
+
+
+  int avail_psram = ESP.getFreePsram();
+  Serial.print("PSRAM size to store the video "); Serial.println(avail_psram);
+
+
+  idx_buf_size = max_frames * 10 + 20;
+
+//  if (hdcam) {
+    avi_buf_size = avail_psram - 900 * 1024; //900 for hd, 500 for vga
+    Serial.println("Camera to HD ");
+
+
+ 
+  Serial.print("try to allocate "); Serial.println(avi_buf_size);
+
   psram_avi_buf = (uint8_t*)ps_malloc(avi_buf_size);
   if (psram_avi_buf == 0) Serial.printf("psram_avi allocation failed\n");
   psram_idx_buf = (uint8_t*)ps_malloc(idx_buf_size); // save file in psram
   if (psram_idx_buf == 0) Serial.printf("psram_idx allocation failed\n");
 
+
+
+
+
+
   if (!setupCamera()) {
     Serial.println("Camera Setup Failed!");
-    while (true) {
-      delay(100);
-    }
+
   }
 
-  for (int j = 0; j < 7; j++) {
+  for (int j = 0; j < 3; j++) {
     camera_fb_t * fb = esp_camera_fb_get();
     if (!fb) {
       Serial.println("Camera Capture Failed");
@@ -533,27 +509,25 @@ void setup() {
     }
   }
 
+ 
 
 
 
 
-
-
-  initSPIFFS();
+  //initSPIFFS();
 
   
   // Load values saved in SPIFFS
   ssid = readFile(SPIFFS, ssidPath);
   pass = readFile(SPIFFS, passPath);
+  nomedobot = readFile(SPIFFS, nomedobotPath);
   tokentelegram = readFile (SPIFFS, tokentelegramPath);
 
 
   Serial.println(ssid);
   Serial.println(pass);
+  Serial.println(nomedobot);
   Serial.println(tokentelegram);
-
-
-
 
 
 
@@ -562,6 +536,7 @@ void setup() {
   if(init_wifi()) {
 
 
+  client.setInsecure();
 
 
 
@@ -572,8 +547,23 @@ void setup() {
     });
     server.serveStatic("/", SPIFFS, "/");
 
+
+
+      server.on("/server", HTTP_GET, [](AsyncWebServerRequest * request) {
+  
+    if (camserver == "on"){
+      camserver = "off";     
+    }else{
+camserver = "on";
+    }
+    request->send(SPIFFS, "/index.html", "text/html", false);
+  });
+
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
-  capturePhotoSaveSpiffs();
+      xTaskCreate(foto,"FOTO", 20000, NULL, 0, NULL);     
+
+  
+//  capturePhotoSaveSpiffs();
 //    request->send_P(200, "text/plain", "Taking Photo");
     request->send(SPIFFS, "/index.html", "text/html", false);
   });
@@ -605,6 +595,8 @@ void setup() {
 
     }
   else {
+      client.setInsecure();
+
     // Connect to Wi-Fi network with SSID and password
     Serial.println("Setting AP (Access Point)");
     // NULL sets an open Access Point
@@ -623,7 +615,10 @@ void setup() {
 
 
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
-  capturePhotoSaveSpiffs();
+ // capturePhotoSaveSpiffs();
+      xTaskCreate(foto,"FOTO", 20000, NULL, 0, NULL);     
+
+
 //    request->send_P(200, "text/plain", "Taking Photo");
     request->send(SPIFFS, "/wifimanager.html", "text/html", false);
   });
@@ -669,9 +664,21 @@ void setup() {
             // Write file to save value
             writeFile(SPIFFS, tokentelegramPath, tokentelegram.c_str());
             //EEPROM.put(tokentelegram.c_str());
+          }
+                              // HTTP POST tokentelegram value
+          if (p->name() == PARAM_INPUT_14) {
+            nomedobot = p->value().c_str();
+            Serial.print("Nome do bot set to: ");
+            Serial.println(nomedobot);
+            // Write file to save value
+            writeFile(SPIFFS, nomedobotPath, nomedobot.c_str());
+          }
+
+          
+          
            
             
-          }
+          
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
@@ -687,15 +694,15 @@ void setup() {
   //bot.longPoll = 60;
   bot.longPoll = 5;
 
-  client.setInsecure();
+//  client.setInsecure();
 
   setupinterrupts();
 
   String stat = "Reboot\nDevice: " + devstr + "\nVer: " + String(vernum) + "\nRssi: " + String(WiFi.RSSI()) + "\nip: " +  WiFi.localIP().toString() + "\n/start";
   bot.sendMessage(chat_id, stat, "");
 
-  pir_enabled = false;
-  avi_enabled = false;
+  pir_enabled = true;
+  avi_enabled = true;
   digitalWrite(33, HIGH);
 }
 
@@ -720,6 +727,7 @@ void loop() {
   }
 
   if (video_ready) {
+    
     video_ready = false;
     send_the_video();
   }
@@ -733,27 +741,17 @@ void loop() {
 
 
 
-  if (millis() > Bot_lasttime + Bot_mtbs )  {
+     if (millis() - tempotelegram > 5000)//Faz a verificaçao das funçoes a cada 30min
+   {
+      connect();
+       //  server.begin();
+      readTel();
+   // xTaskCreate(tele,"READ TEL", 50000, NULL, 0, NULL);     
 
-    if (WiFi.status() != WL_CONNECTED) {
-      Serial.println("***** WiFi reconnect *****");
-      WiFi.reconnect();
-      delay(5000);
-      if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("***** WiFi rerestart *****");
-        init_wifi();
-      }
-    }
-
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-
-    while (numNewMessages) {
-      //Serial.println("got response");
-      handleNewMessages(numNewMessages);
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
-    }
-    Bot_lasttime = millis();
-  }
+    
+      tempotelegram = millis();
+     
+   }
 
      if (millis() - timefoto > 1800000)//Faz a verificaçao das funçoes a cada 30min
    {
@@ -761,6 +759,33 @@ void loop() {
       timefoto = millis();
      
    }
+
+
+     if (millis() - tempostream > 100)//Faz a verificaçao das funçoes a cada 30min
+   {
+
+     if (camserver == "on"){
+
+      
+
+//inicia streming
+
+ //  rtspServer.begin();
+
+
+  //    stream();
+   //  xTaskCreate(streamx,"VLC", 20000, NULL, 0, NULL);     
+     }
+
+      tempostream = millis();
+     
+   }
+
+
+ 
+
+
+   
 
   
 }

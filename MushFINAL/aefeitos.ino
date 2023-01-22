@@ -1,4 +1,12 @@
 
+void fast(void * parameter){
+    FastLED.show();
+     Serial.print("Task LED running on core ");
+   Serial.println(xPortGetCoreID());
+    vTaskDelete(NULL);
+}
+
+
 
 // **************** НАСТРОЙКИ ЭФФЕКТОВ ****************
 // эффект "шарики"
