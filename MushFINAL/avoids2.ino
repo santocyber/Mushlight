@@ -58,7 +58,7 @@ void readTel()//Funçao que faz a leitura do Telegram.
 {  
 
 
-   Serial.print("Task1 running on core ");
+   Serial.print("Task READTEL running on core ");
    Serial.println(xPortGetCoreID());
 
 
@@ -204,19 +204,97 @@ void readTel()//Funçao que faz a leitura do Telegram.
 
             else if (text.indexOf("foto") > -1)//Caso o texto recebido contenha "OFF"
       {
-       // camtelegram();
-       
+    #if (CAMERA == 1)
+           takeNewPhoto = true;
+           delay(300);
+           sendPhotoTelegram();
+    
+
+#endif
         bot.sendMessage(id, "Sorria!!", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
                   else if (text.indexOf("sd") > -1)//Caso o texto recebido contenha "OFF"
       {
   //      cam = "on";
-  //      sendPhotoTelegram();
-       
+    #if (CAMERA == 1)
+            takeNewPhoto = true;
+           delay(300);
+           sendPhotoTelegram();
+   
+
+#endif
 
 //        sendfoto();
         bot.sendMessage(id, "foto sd", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
+
+
+ else if (text.indexOf("vga") > -1)//Caso o texto recebido contenha "OFF"
+      {
+ fb = NULL;
+
+      sensor_t * s = esp_camera_sensor_get();
+      s->set_framesize(s, FRAMESIZE_HD);
+
+      Serial.println("\n\n\nSending VGA");
+
+      // Take Picture with Camera
+      fb = esp_camera_fb_get();
+      if (!fb) {
+        Serial.println("Camera capture failed");
+        bot.sendMessage(id, "Camera capture failed", "");
+        return;
+      }
+
+      currentByte = 0;
+      fb_length = fb->len;
+      fb_buffer = fb->buf;
+
+      Serial.println("\n>>>>> Sending as 512 byte blocks, with jzdelay of 0, bytes=  " + String(fb_length));
+
+      bot.sendPhotoByBinary(id, "image/jpeg", fb_length,
+                            isMoreDataAvailable, getNextByte,
+                            nullptr, nullptr);
+
+      esp_camera_fb_return(fb);
+
+
+      
+
+      }
+
+
+
+
+       else if (text.indexOf("clip") > -1)//Caso o texto recebido contenha "OFF"
+      {
+
+
+  avi_enabled = true;
+
+      // record the video
+      bot.longPoll =  0;
+      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+
+     // xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 1);
+    //  xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
+
+      if ( the_camera_loop == NULL ) {
+        //vTaskDelete( xHandle );
+        Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop);
+      }
+        avi_enabled = false;
+
+    }
+
+    else if (text.indexOf("/video") > -1){
+ //     xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+
+   // video_ready = true;
+        
+      }
+
+      
            else if (text.indexOf("restart") > -1)//Caso o texto recebido contenha "OFF"
       {
         bot.sendMessage(id, "reiniciando esp", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
@@ -317,6 +395,7 @@ Ping.ping("google.com", 1);
       }
 
    }
-
+client.flush();
+client.stop();
 
 }

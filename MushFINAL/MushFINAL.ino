@@ -1,4 +1,4 @@
-//Codigo disponivel no github desenvolvido por @SantoCyber
+  //Codigo disponivel no github desenvolvido por @SantoCyber
 #include <WiFi.h>
 #include "Arduino.h"
 #include <StringArray.h>
@@ -19,8 +19,7 @@
 #include "bitmap7.h"
 #include "bitmap8.h"
 #include "bitmap9.h"
-#include <Adafruit_BMP280.h>
-#include <Adafruit_AHTX0.h>
+#include "SD_MMC.h"            // SD Card ESP32
 #include <FS.h>
 #include <WiFiClientSecure.h>
 #include <time.h>
@@ -29,19 +28,38 @@
 #include "EEPROM.h"
 #include <ESPmDNS.h>
 
+//##############################################ATIVA O bluetooth
+
+#include <esp_attr.h>
+//#include "soc/rtc_wdt.h"
+
+
+#include <BleSerial.h>
+
+BleSerial ble;
+
+const char *openai_api_key = "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";
+const char *openai_url = "https://api.openai.com/v1/engines/text-davinci-003/jobs";
+
+
+
+#define SENSOR 0
+#define CAMERA 1
+
+
 //################## IWDT
 #include <ESP32Ping.h>
   uint32_t notConnectedCounter = 0;
-
-#include <soc/rtc_wdt.h>
+//#include <soc/rtc_wdt.h>
 #include <esp_task_wdt.h>
 #include "soc/rtc_cntl_reg.h"  // Disable brownour problems
 #include "soc/soc.h"           // Disable brownour problems
 #include "sdkconfig.h"
 #include "driver/rtc_io.h"
-#include <esp_system.h>
 #include <nvs_flash.h>
 #include "esp_camera.h"
+#include "esp_system.h"
+
 
 #define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
 
@@ -81,7 +99,7 @@ const char* ntpServer = "pool.ntp.org";
 static const char vernum[] = "MushLightCAM0.1V";
 
 
-/*
+
 int max_frames = 150;
 framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
 int frame_interval = 0;          // 0 = record at full speed, 100 = 100 ms delay between frames
@@ -90,27 +108,109 @@ int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
 int quality = 10;
 int qualityconfig = 5;
 
-/*
+
+
+struct tm timeinfo;
+time_t now;
+
+// Initialize Wifi connection to the router and Telegram BOT
+
+//char ssid[] = "InternetSA";     // your network SSID (name)
+//char password[] = "cadebabaca"; // your network key
+// https://sites.google.com/a/usapiens.com/opnode/time-zones  -- find your timezone here
+String TIMEZONE = "GMT0BST,M3.5.0/01,M10.5.0/02";
+
+bool flashState = LOW;
+
+camera_fb_t * fb = NULL;
+camera_fb_t * vid_fb = NULL;
+
+TaskHandle_t the_camera_loop_task;
+void the_camera_loop(void* pvParameter) ;
+TaskHandle_t savesdtask;
+void savesd(void* pvParameter) ;
+
+
+
+static void IRAM_ATTR PIR_ISR(void* arg) ;
+
+bool video_ready = false;
+bool picture_ready = false;
+bool active_interupt = false;
+bool pir_enabled = true;
+bool avi_enabled = true;
+
+int avi_buf_size = 0;
+int idx_buf_size = 0;
+
+bool isMoreDataAvailable();
+
+
+////////////////////////////////  send photo as 512 byte blocks or jzblocksize 
+int currentByte;
+uint8_t* fb_buffer;
+size_t fb_length;
+
+bool isMoreDataAvailable() {
+  return (fb_length - currentByte);
+}
+
+uint8_t getNextByte() {
+  currentByte++;
+  return (fb_buffer[currentByte - 1]);
+}
+
+////////////////////////////////  send avi as 512 byte blocks or jzblocksize 
+int avi_ptr;
+uint8_t* avi_buf;
+size_t avi_len;
+
+bool avi_more() {
+  return (avi_len - avi_ptr);
+}
+
+uint8_t avi_next() {
+  avi_ptr++;
+  return (avi_buf[avi_ptr - 1]);
+}
+
+bool dataAvailable = false;
+
+
+///////////////////////////////
+
+uint8_t * psram_avi_buf = NULL;
+uint8_t * psram_idx_buf = NULL;
+uint8_t * psram_avi_ptr = 0;
+uint8_t * psram_idx_ptr = 0;
+char strftime_buf[64];
+
+
+
+#if (CAMERA == 1)
+
 /// defined(CAMERA_MODEL_ESP32S3_EYE)
-#define PWDN_GPIO_NUM    -1
-#define RESET_GPIO_NUM   -1
-#define XCLK_GPIO_NUM    21
-#define SIOD_GPIO_NUM    26
-#define SIOC_GPIO_NUM    27
+#define PWDN_GPIO_NUM -1
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 15
+#define SIOD_GPIO_NUM 4
+#define SIOC_GPIO_NUM 5
 
-#define Y9_GPIO_NUM      35
-#define Y8_GPIO_NUM      34
-#define Y7_GPIO_NUM      39
-#define Y6_GPIO_NUM      36
-#define Y5_GPIO_NUM      19
-#define Y4_GPIO_NUM      18
-#define Y3_GPIO_NUM       5
-#define Y2_GPIO_NUM       4
-#define VSYNC_GPIO_NUM   25
-#define HREF_GPIO_NUM    23
-#define PCLK_GPIO_NUM    22
+#define Y2_GPIO_NUM 11
+#define Y3_GPIO_NUM 9
+#define Y4_GPIO_NUM 8
+#define Y5_GPIO_NUM 10
+#define Y6_GPIO_NUM 12
+#define Y7_GPIO_NUM 18
+#define Y8_GPIO_NUM 17
+#define Y9_GPIO_NUM 16
 
-*/
+#define VSYNC_GPIO_NUM 6
+#define HREF_GPIO_NUM 7
+#define PCLK_GPIO_NUM 13
+
+
+#endif
 
 //##########CONFIG TEXTO
 String runningText = "MushLight";
@@ -118,17 +218,23 @@ String runningText = "MushLight";
 
 //#############################################################################Configura GPI0
 
-#define LED_PIN 32
-#define MQ_analog 33
-const int vibra = 34;
+#define LED_PIN 2
+#define MQ_analog 42
+const int vibra = 41;
+
+
+
+#define SD_MMC_CMD 38 //Please do not modify it.
+#define SD_MMC_CLK 39 //Please do not modify it. 
+#define SD_MMC_D0  40 //Please do not modify it.
 
 
 
 //config BMP
-
+#if (SENSOR == 1)
 Adafruit_AHTX0 aht;
 Adafruit_BMP280 bmp; // I2C
-
+#endif
 
 int valoratm = 0;//Declara a variável valorldr como inteiro
 int valortemp = 0;//Declara a variável valorldr como inteiro
@@ -566,7 +672,11 @@ bool initWiFi() {
     Serial.println("Error setting up MDNS responder!");
     return false;
   } else {
+    MDNS.addService("http", "tcp", 80);
     Serial.printf("mDNS responder started '%s'\n", nomedobot.c_str());
+     Serial.print("You can now connect to http://");
+    Serial.print(nomedobot.c_str());
+    Serial.println(".local");
   }
 
       
@@ -582,55 +692,31 @@ bool initWiFi() {
 
 
 ////#############################################################################Le sensores
+#if (SENSOR == 1)
+#include <Adafruit_BMP280.h>
+#include <Adafruit_AHTX0.h>
+#endif
 
-
+#if (SENSOR == 0)
  String readCO2() {
-
-  float c = analogRead(MQ_analog);
-
-    return String(c);
+    return "desativado";
 }
 
-
-
 String readDHTTemperature() {
-  sensors_event_t humidity, temp;
-  aht.getEvent(&humidity, &temp);
-  
-  float t = temp.temperature;
+    return "desativado";
 
-  if (isnan(t)) {    
-   // Serial.println("Failed to read from DHT sensor!");
-    return "--";
-  }
-  else {
-  //  Serial.println(t);
-    return String(t);
-  }
 }
 
 String readDHTHumidity() {
-    sensors_event_t humidity, temp;
-  aht.getEvent(&humidity, &temp);
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  float h = humidity.relative_humidity;
-  if (isnan(h)) {
-    //Serial.println("Failed to read from DHT sensor!");
-    return "--";
-  }
-  else {
-   // Serial.println(h);
-    return String(h);
-  }
+    return "desativado";
+
 }
 
 String readDHTPressao() {
-  float p = bmp.readPressure();
-
-    return String(p);
+    return "desativado";
   
 }
-
+#endif
   
 ////###############################################################
           
@@ -659,12 +745,12 @@ String processor(const String& var){
   }
   return String();
 }
-/*
+#if (CAMERA == 1)
 
 bool setupCamera()
-{
+{ 
   camera_config_t config;
- config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
   config.pin_d0 = Y2_GPIO_NUM;
   config.pin_d1 = Y3_GPIO_NUM;
@@ -678,32 +764,43 @@ bool setupCamera()
   config.pin_pclk = PCLK_GPIO_NUM;
   config.pin_vsync = VSYNC_GPIO_NUM;
   config.pin_href = HREF_GPIO_NUM;
-  config.pin_sccb_sda = SIOD_GPIO_NUM;
-  config.pin_sccb_scl = SIOC_GPIO_NUM;
+  config.pin_sscb_sda = SIOD_GPIO_NUM;
+  config.pin_sscb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn = PWDN_GPIO_NUM;
   config.pin_reset = RESET_GPIO_NUM;
   config.xclk_freq_hz = 20000000;
- // config.frame_size = FRAMESIZE_QVGA;
+  config.frame_size = FRAMESIZE_VGA;
   config.pixel_format = PIXFORMAT_JPEG; // for streaming
   //config.pixel_format = PIXFORMAT_RGB565; // for face detection/recognition
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM;
-//  config.jpeg_quality = 12;
-//  config.fb_count = 1;
+  config.jpeg_quality = 12;
+  config.fb_count = 1;
+
   
-  //init with high specs to pre-allocate larger buffers
-  if (psramFound()) {
-    config.frame_size = configframesize;
-    config.jpeg_quality = qualityconfig;
-    config.fb_count = 4; 
+  // if PSRAM IC present, init with UXGA resolution and higher JPEG quality
+  //                      for larger pre-allocated frame buffer.
+  if(config.pixel_format == PIXFORMAT_JPEG){
+    if(psramFound()){
+      config.jpeg_quality = 10;
+      config.fb_count = 2;
+      config.grab_mode = CAMERA_GRAB_LATEST;
+    } else {
+      // Limit the frame size when PSRAM is not available
+      config.frame_size = FRAMESIZE_SVGA;
+      config.fb_location = CAMERA_FB_IN_DRAM;
+    }
   } else {
-    config.frame_size = FRAMESIZE_SVGA;
-    config.jpeg_quality = 12;
-    config.fb_count = 1;
+    // Best option for face detection/recognition
+    config.frame_size = FRAMESIZE_240X240;
+#if CONFIG_IDF_TARGET_ESP32S3
+    config.fb_count = 2;
+#endif
   }
 
-  //Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
-  //Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
+  
+  Serial.printf("Internal Total heap %d, internal Free Heap %d\n", ESP.getHeapSize(), ESP.getFreeHeap());
+  Serial.printf("SPIRam Total heap   %d, SPIRam Free Heap   %d\n", ESP.getPsramSize(), ESP.getFreePsram());
 
   static char * memtmp = (char *) malloc(32 * 1024);
   static char * memtmp2 = (char *) malloc(32 * 1024); //32767
@@ -720,16 +817,16 @@ bool setupCamera()
   memtmp = NULL;
 
 
-  sensor_t * s = esp_camera_sensor_get();
+//  sensor_t * s = esp_camera_sensor_get();
 
   //  drop down frame size for higher initial frame rate
-  s->set_framesize(s, (framesize_t)framesize);
-  s->set_quality(s, quality);
-  delay(200);
+ // s->set_framesize(s, (framesize_t)framesize);
+ // s->set_quality(s, quality);
+ // delay(200);
   return true;
 }
+#endif
 
-*/
 
 //######################## SETUP
 
@@ -739,7 +836,7 @@ void setup() {
 
   esp_task_wdt_init(60, true);
 
-xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );     
+//xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );     
      
 
   // Serial port for debugging purposes
@@ -749,23 +846,103 @@ xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );
 
 
     Serial.begin(115200);
- 
 
-    EEPROM.begin(512);
 
 
 Serial.setDebugOutput(true);
   Serial.println();
 
-// Turn-off the 'brownout detector'
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+    SD_MMC.setPins(SD_MMC_CLK, SD_MMC_CMD, SD_MMC_D0);
+    if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 5)) {
+      Serial.println("Card Mount Failed");
+      return;
+    }
+    
+    uint8_t cardType = SD_MMC.cardType();
+    if(cardType == CARD_NONE){
+        Serial.println("No SD_MMC card attached");
+        return;
+    }
+  
 
- 
+    Serial.print("SD_MMC Card Type: ");
+    if(cardType == CARD_MMC){
+        Serial.println("MMC");
+    } else if(cardType == CARD_SD){
+        Serial.println("SDSC");
+    } else if(cardType == CARD_SDHC){
+        Serial.println("SDHC");
+    } else {
+        Serial.println("UNKNOWN");
+    }
+
+
+
+    Serial.printf("Total space: %lluMB\r\n", SD_MMC.totalBytes() / (1024 * 1024));
+    Serial.printf("Used space: %lluMB\r\n", SD_MMC.usedBytes() / (1024 * 1024));
+
+
+  int avail_psram = ESP.getFreePsram();
+  Serial.print("PSRAM size to store the video "); Serial.println(avail_psram);
+  idx_buf_size = max_frames * 10 + 20;
+//  if (hdcam) {
+    avi_buf_size = avail_psram - 900 * 1024; //900 for hd, 500 for vga
+    Serial.println("Camera to HD ");
+  Serial.print("try to allocate "); Serial.println(avi_buf_size);
+  psram_avi_buf = (uint8_t*)ps_malloc(avi_buf_size);
+  if (psram_avi_buf == 0) Serial.printf("psram_avi allocation failed\n");
+  psram_idx_buf = (uint8_t*)ps_malloc(idx_buf_size); // save file in psram
+  if (psram_idx_buf == 0) Serial.printf("psram_idx allocation failed\n");
+
+
+
+
+
+// Turn-off the 'brownout detector'
+ // WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+ #if (CAMERA == 1)
   // Camera init
-//if (!setupCamera())
-//  {
-//    Serial.println("Camera Setup Failed!");
-//  }
+if (!setupCamera())
+  {
+    Serial.println("Camera Setup Failed!");
+  }
+
+#endif
+
+
+
+
+  ble.begin("MushLight");
+
+//inicia PIR
+setupinterrupts();
+
+
+  //Disable watchdog timers
+  disableCore0WDT();
+  disableCore1WDT();
+  disableLoopWDT();
+  esp_task_wdt_delete(NULL);
+  //rtc_wdt_protect_off();
+  //rtc_wdt_disable();
+
+  //Start tasks
+ //// xTaskCreate(ReadSerialTask, "ReadSerialTask", 10240, NULL, 1, NULL);
+  //xTaskCreate(ReadBtTask, "ReadBtTask", 10240, NULL, 1, NULL);
+
+
+
+  BLESecurity *pSecurity = new BLESecurity();
+  pSecurity->setStaticPIN(123456); 
+  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
+  
+  //set static passkey
+  Serial.println("Characteristic defined! Now you can read it in your phone!");
+ 
+
+    EEPROM.begin(512);
+
 
 
  
@@ -807,10 +984,10 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
 
 
 //#########################################################inicia sensores tem umi pressao
-
+#if (SENSOR == 1)
 aht.begin();
 bmp.begin();
-
+#endif
 
 
 
@@ -929,6 +1106,11 @@ FastLED.delay(2000 / velovar);
       });
 
 
+
+server.on("/lersd", HTTP_GET, listFilesOnWebPage);
+server.on("/lersdx/*", HTTP_GET, handleFile);
+
+
        
     // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -949,6 +1131,7 @@ FastLED.delay(2000 / velovar);
         request->send(SPIFFS, "/log.html", "text/html", false);
  
     });
+
 
   // Request for the latest sensor readings
   server.on("/readings", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -1586,13 +1769,20 @@ FastLED.delay(2000 / velovar);
   }
 
 
+
+  pir_enabled = true;
+  avi_enabled = true;
+
 }
 
 
 
 
+int loopcount = 0;
+
 
 void loop() {
+  loopcount++;
 
 
 
@@ -1626,9 +1816,7 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
   if (millis() - tempoverifica > 1800000)//Faz a verificaçao das funçoes a cada 30min
    {   //tira foto e manda clima no telegram
       connect();
-    xTaskCreate(tele,"READ TEL", 40000, NULL, 0, NULL);     
-        xTaskCreate(verifica1,"VERIFICA1", 10000, NULL, 0, NULL);     
-
+ 
     //  verifica();
       tempoverifica = millis();
      
@@ -1650,25 +1838,109 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
    }
 
 
-     if (millis() - tempotelegram > 5000)//Faz a verificaçao das funçoes a cada 30min
+     if (millis() - tempotelegram > 15000)//Faz a verificaçao das funçoes a cada 30min
    {
       connect();
-      //readTel();
-    xTaskCreate(tele,"READ TEL", 40000, NULL, 0, NULL);     
+      readTel();
+//    xTaskCreate(tele,"READTEL", 40000, NULL, 0, NULL);     
 
     
       tempotelegram = millis();
+      
+      ble.println("Hello!");
      
    }
 
 
 
   
+
+
+
+//####################################le bluetooth serial
+    if (ble.available() > 0) {
+    
+    delay(200);
+    
+    String input = ble.readStringUntil('\n');
+    Serial.println(input);
+
+
+if (input.indexOf("ledon") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("led ON");
+         ble.println("led ON");
+
+         ledState = "ledon";
+       //  bot.sendMessage(id, "LED ON VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+if (input.indexOf("ledoff") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("led OFF");
+         ledState = "ledoff";
+         bot.sendMessage(id, "LED OFF VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("SORRIA!");
+         //ledon();
+
+    send_the_picture();
+
+           
+        // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+      if (input.indexOf("sd") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("SORRIA!");
+         ble.println("SORRIA!!!");
+         //savesd();
+      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+
+        // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+    delay(300);
+    }
+    delay(20);
+
+
+//############################## Le porta serial
+  if (Serial.available() > 0) {
+    
+      String input = Serial.readStringUntil('\n');
+      Serial.println(input);    
+      ble.println(input);
+      delay(300);
+
+      if (input.indexOf("sd") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("SORRIA!");
+         //savesd();
+      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+
+         
+        // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
+
+
+  }
+
+
+
+
+
     if (takeNewPhoto) {
     delay(200);
 
-     //   xTaskCreate(camera,"TAKE A PICTURE", 40000, NULL, 0, NULL);     
+     //   xTaskCreate(camera,"TAKEAPICTURE", 40000, NULL, 0, NULL);     
+#if (CAMERA == 1)
+//capturePhotoSaveSpiffs();
+      xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 1);
+      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
 
+#endif
     takeNewPhoto = false;
      delay(600);
   }
@@ -1677,6 +1949,16 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
 
 
+  if (picture_ready) {
+    picture_ready = false;
+    send_the_picture();
+  }
+
+  if (video_ready) {
+    
+    video_ready = false;
+    send_the_video();
+  }
 
 
 

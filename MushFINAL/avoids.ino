@@ -1,10 +1,69 @@
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+// setup some interupts during reboot
+//
+//  int read13 = digitalRead(13); -- pir for video
 
-void verifica1(void * parameter){
-   verifica();
-     Serial.print("Task VERIFICA running on core ");
-   Serial.println(xPortGetCoreID());
-    vTaskDelete(NULL);
+int PIRpin = 13;
+
+static void setupinterrupts() {
+
+  pinMode(PIRpin, INPUT_PULLDOWN) ; //INPUT_PULLDOWN);
+
+  Serial.print("Setup PIRpin = ");
+  for (int i = 0; i < 5; i++) {
+    Serial.print( digitalRead(PIRpin) ); Serial.print(", ");
+  }
+  Serial.println(" ");
+
+  esp_err_t err = gpio_isr_handler_add((gpio_num_t)PIRpin, &PIR_ISR, NULL);
+
+  if (err != ESP_OK) Serial.printf("gpio_isr_handler_add failed (%x)", err);
+  gpio_set_intr_type((gpio_num_t)PIRpin, GPIO_INTR_POSEDGE); 
+
+
 }
+
+
+
+
+
+
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//
+//  PIR_ISR - interupt handler for PIR  - starts or extends a video
+//
+static void IRAM_ATTR PIR_ISR(void* arg) {
+
+  int PIRstatus = digitalRead(PIRpin) + digitalRead(PIRpin) + digitalRead(PIRpin) ;
+  if (PIRstatus == 3) {
+    Serial.print("PIR Interupt>> "); Serial.println(PIRstatus);
+
+
+    if (!active_interupt && pir_enabled) {
+      active_interupt = true;
+      digitalWrite(33, HIGH);
+      Serial.print("PIR Interupt ... start recording ... ");
+
+     // xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+
+      xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
+      //xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
+      xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 1);
+      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+
+
+      if ( the_camera_loop == NULL ) {
+     ///\\\\\\\\\\\\\\\\\\\\\\\\\\\/\\\\    Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop);
+      }
+
+    }
+  }
+}
+
+
 
 
 
@@ -15,7 +74,7 @@ void verifica1(void * parameter){
 void verifica(){
 
     //   takeNewPhoto = true;
-    //   sendPhotoTelegram();
+    //   send_the_picture(); 
       
         time_t now = time(nullptr);
           time_now = String(ctime(&now)).substring(0,24);
@@ -169,7 +228,7 @@ if (color_counter == 9)
 }
 
 delay(1000);
-  //sendPhotoTelegram();
+  //send_the_picture(); 
   takeNewPhoto = true; 
 
 }
