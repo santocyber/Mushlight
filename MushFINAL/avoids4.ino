@@ -5,6 +5,9 @@ void listFilesOnWebPage(AsyncWebServerRequest *request) {
 
  String output = "<html><body>";
     output += "<h1>Arquivos no cartao SD</h1><br>";
+    output += "<a href='./'>VOLTAR</a>";
+    output += "<br><br>";
+
     root.rewindDirectory();
     File file = root.openNextFile();
     while(file){

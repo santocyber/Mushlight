@@ -1,10 +1,5 @@
 
 
-void tele(void * parameter){
-    readTel();
-    vTaskDelete(NULL);
-}
-
 
 void connect()//Funçao para Conectar ao wifi e verificar à conexao.
 {
@@ -13,21 +8,19 @@ void connect()//Funçao para Conectar ao wifi e verificar à conexao.
     WiFi.begin(ssid.c_str(), pass.c_str());
     //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
     client.setHandshakeTimeout(120000);
+    client.setTimeout(3000);
 
     delay(10);
    }
 }
 
-
-
+//#################################################################PING WDT
 
 void pingando(){
 
-   Serial.print("Task2 running on core ");
+   Serial.print("Task PING running on core ");
    Serial.println(xPortGetCoreID());
 
-
-//#################################################################PING WDT
     if(Ping.ping("google.com", 1)) {
  Serial.println("Ping pong OK contando....");
     Serial.print(Ping.averageTime());
@@ -54,13 +47,26 @@ else{
 //##############VOID TELEGRAM
 
 
-void readTel()//Funçao que faz a leitura do Telegram.
-{  
+
+void tele(void* pvParameters){
+readTel();
+            vTaskDelay(5000/ portTICK_RATE_MS);
 
 
-   Serial.print("Task READTEL running on core ");
+}
+
+
+
+
+
+  void readTel(){
+
+  
+
+
+
+   Serial.print("Task TELE running on core ");
    Serial.println(xPortGetCoreID());
-
 
   
    int newmsg = bot.getUpdates(bot.last_message_received + 1);
@@ -96,14 +102,16 @@ void readTel()//Funçao que faz a leitura do Telegram.
       if (text.indexOf("ledon") > -1)//Caso o texto recebido contenha "ON"
       {
          ledon();
-         bot.sendMessage(id, "LED ON", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+         ledState = "ledon";
+         bot.sendMessage(id, ledState, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
 
       else if (text.indexOf("ledoff") > -1)//Caso o texto recebido contenha "OFF"
       {
       //  NeoFade(100);
         ledoff();
-        bot.sendMessage(id, "LED OFF", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+        ledState = "ledoff";
+        bot.sendMessage(id, ledState, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
       else if (text.indexOf("clima") > -1)//Caso o texto recebido contenha "START"
       {
@@ -202,27 +210,64 @@ void readTel()//Funçao que faz a leitura do Telegram.
         bot.sendMessage(id, "Monitorando grupo do telegram, envie msg com / para aparecer na luminaria", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
 
-            else if (text.indexOf("foto") > -1)//Caso o texto recebido contenha "OFF"
-      {
-    #if (CAMERA == 1)
-           takeNewPhoto = true;
-           delay(300);
-           sendPhotoTelegram();
-    
 
-#endif
-        bot.sendMessage(id, "Sorria!!", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+    for (int j = 0; j < 2; j++) {
+    camera_fb_t * newfb = esp_camera_fb_get();
+    if (!newfb) {
+      Serial.println("Camera Capture Failed");
+    } else {
+      //Serial.print("Pic, len="); Serial.print(newfb->len);
+      //Serial.printf(", new fb %X\n", (long)newfb->buf);
+      esp_camera_fb_return(newfb);
+      delay(30);
+    }
+  }
+  
+     
+
+      if (text.indexOf("/foto") > -1){
+
+      fb = NULL;
+
+
+    //   digitalWrite(FLASH_LED_PIN, HIGH);
+
+      fb = esp_camera_fb_get();
+      esp_camera_fb_return(fb);
+      delay(100);
+
+      // Take Picture with Camera
+      fb = esp_camera_fb_get();
+      if (!fb) {
+        Serial.println("Camera capture failed");
+        bot.sendMessage(id, "Camera capture failed", "");
+        return;
       }
+
+      // digitalWrite(FLASH_LED_PIN, LOW);
+
+      currentByte = 0;
+      fb_length = fb->len;
+      fb_buffer = fb->buf;
+
+      Serial.println("\n>>>>> Sending, bytes=  " + String(fb_length));
+
+        bot.sendPhotoByBinary(id, "image/jpeg", fb_length,
+                              isMoreDataAvailable, getNextByte,
+                              nullptr, nullptr);
+
+        dataAvailable = true;
+
+        Serial.println("done!");
+      
+      esp_camera_fb_return(fb);
+     }
+
+
                   else if (text.indexOf("sd") > -1)//Caso o texto recebido contenha "OFF"
       {
-  //      cam = "on";
-    #if (CAMERA == 1)
             takeNewPhoto = true;
            delay(300);
-           sendPhotoTelegram();
-   
-
-#endif
 
 //        sendfoto();
         bot.sendMessage(id, "foto sd", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
@@ -293,7 +338,6 @@ void readTel()//Funçao que faz a leitura do Telegram.
    // video_ready = true;
         
       }
-
       
            else if (text.indexOf("restart") > -1)//Caso o texto recebido contenha "OFF"
       {
@@ -316,8 +360,11 @@ void readTel()//Funçao que faz a leitura do Telegram.
 
        else if (text.indexOf("status") > -1)//Caso o texto recebido contenha "OFF"
       {
-     welcome = "Nome do bot:\n";
+    welcome = "Nome do bot:\n";
     welcome +=  nomedobot.c_str();
+    welcome += "\n";
+    welcome += "MAC endereço:\n";
+    welcome += WiFi.macAddress();
     welcome += "\n";
     welcome += "CORE:";    
     welcome += xPortGetCoreID();
@@ -329,6 +376,12 @@ void readTel()//Funçao que faz a leitura do Telegram.
 Ping.ping("google.com", 1);
     welcome +=  Ping.averageTime();
     welcome += "ms";
+    welcome += "\n";
+    welcome += "MMC Size:";
+    welcome += SD_MMC.totalBytes();
+    welcome += "\n"; 
+    welcome += "MMC USADOSize:";
+    welcome += SD_MMC.usedBytes();
     welcome += "\n";
     welcome += "HEAP Size:";
     welcome += ESP.getHeapSize();  
@@ -351,6 +404,9 @@ Ping.ping("google.com", 1);
     welcome += "\n";
     welcome += "Numero de Falhas na internet: ";
     welcome += notConnectedCounter;
+    welcome += "\n";
+    welcome += "Estado LED: ";
+    welcome += ledState;
 
    
     
@@ -381,9 +437,9 @@ Ping.ping("google.com", 1);
       welcome += "/ledoff: Para desligar o LED\n";
       welcome += "/status : STATUS\n";
       welcome += "/start : Abre esse menu\n";
-       welcome += "/restart : Reinicia o Controlador\n";
-       welcome += "/deletalog : Deleta o log\n";
-       welcome += "Acesse o ip http://";
+      welcome += "/restart : Reinicia o Controlador\n";
+      welcome += "/deletalog : Deleta o log\n";
+      welcome += "Acesse o ip http://";
       welcome +=  WiFi.localIP().toString(); 
       welcome += "\n";
       welcome += "Para mais controles e vizualizar o historico dos sensores\n";
@@ -395,7 +451,11 @@ Ping.ping("google.com", 1);
       }
 
    }
+//delay(200);
 client.flush();
 client.stop();
+//  vTaskDelete(NULL);
+       //   vTaskDelete(teletask);
+   // vTaskSuspend(NULL);
 
 }

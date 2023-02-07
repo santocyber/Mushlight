@@ -247,24 +247,24 @@ uint8_t buf[AVIOFFSET] = {
 //
 // Writes an uint32_t in Big Endian at current file position
 //
-static void inline print_quartet(unsigned long i, uint8_t * fd) {
+static void inline print_quartet(unsigned long ix, uint8_t * fd) {
   uint8_t y[4];
-  y[0] = i % 0x100;
-  y[1] = (i >> 8) % 0x100;
-  y[2] = (i >> 16) % 0x100;
-  y[3] = (i >> 24) % 0x100;
+  y[0] = ix % 0x100;
+  y[1] = (ix >> 8) % 0x100;
+  y[2] = (ix >> 16) % 0x100;
+  y[3] = (ix >> 24) % 0x100;
   memcpy( fd, y, 4);
 }
 
 //
 // Writes 2 uint32_t in Big Endian at current file position
 //
-static void inline print_2quartet(unsigned long ix, unsigned long j, uint8_t * fd) {
+static void inline print_2quartet(unsigned long i, unsigned long j, uint8_t * fd) {
   uint8_t y[8];
   y[0] = ix % 0x100;
-  y[1] = (i >> 8) % 0x100;
-  y[2] = (i >> 16) % 0x100;
-  y[3] = (i >> 24) % 0x100;
+  y[1] = (ix >> 8) % 0x100;
+  y[2] = (ix >> 16) % 0x100;
+  y[3] = (ix >> 24) % 0x100;
   y[4] = j % 0x100;
   y[5] = (j >> 8) % 0x100;
   y[6] = (j >> 16) % 0x100;
@@ -335,7 +335,7 @@ camera_fb_t *  get_good_jpeg() {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 // the_camera_loop()
 
-void the_camera_loop(void* pvParameter) {
+void the_camera_loop (void* pvParameter) {
 
     frame_cnt = 0;
 
@@ -570,7 +570,7 @@ void end_avi() {
 
     psram_idx_ptr = psram_idx_buf;
 
-    for (int ix = 0; ix < frame_cnt; ix++) {
+    for (int i = 0; i < frame_cnt; i++) {
       memcpy (psram_avi_ptr, dc_buf, 4);
       psram_avi_ptr += 4;
       memcpy (psram_avi_ptr, zero_buf, 4);
@@ -590,10 +590,8 @@ void end_avi() {
 
 
 
-
-
 void send_the_picture() {
-//  digitalWrite(33, LOW);          // light on
+  digitalWrite(33, LOW);          // light on
   currentByte = 0;
   fb_length = vid_fb->len;
   fb_buffer = vid_fb->buf;
@@ -611,12 +609,12 @@ void send_the_picture() {
   }
   esp_camera_fb_return(vid_fb);
   bot.longPoll =  0;
-  //digitalWrite(33, HIGH);          // light oFF
+  digitalWrite(33, HIGH);          // light oFF
   if (!avi_enabled) active_interupt = false;
 }
 
 void send_the_video() {
-  //digitalWrite(33, LOW);          // light on
+  digitalWrite(33, LOW);          // light on
   Serial.println("\n\n\nSending clip with caption");
   Serial.println("\n>>>>> Sending video as 512 byte blocks, with a caption, and with jzdelay of 0, bytes=  " + String(psram_avi_ptr - psram_avi_buf));
   avi_buf = psram_avi_buf;
@@ -629,74 +627,10 @@ void send_the_video() {
                  avi_more, avi_next, nullptr, nullptr);
 
   Serial.println("done!");
-  //digitalWrite(33, HIGH);          // light off
+  digitalWrite(33, HIGH);          // light off
 
   bot.longPoll = 5;
   active_interupt = false;
 }
-
-
-
-
-
-//################Send foto telegram
-bool isMoreDataAvailableXX();
-byte getNextByteXX();
-File filey = SPIFFS.open(FILE_PHOTO, "r");
-//################Send foto telegram
-////////////////////////////////  manda foto usando SPIFFS
-bool isMoreDataAvailableXX()
-{
-  return filey.available();
-}
-byte getNextByteXX()
-{  return  filey.read();
-}
-///////////////////////////////
-void  sendPhotoTelegram()
-{
- 
-         File filey = SPIFFS.open(FILE_PHOTO, "r");
- if (filey)
-  {
-    Serial.println(FILE_PHOTO);
-    Serial.println("....");
-    Serial.println(filey.read());
-    Serial.println(filey.size());
-    
-    
-    //Content type for PNG image/png
- String sent =     bot.sendPhotoByBinary(idX, "image/jpeg", filey.size(),
-                                        isMoreDataAvailableXX,
-                                        getNextByteXX, nullptr, nullptr);
-  if (sent)
-    {
-      Serial.println("foto enviada ao telegram");
-        bot.sendMessage(id, "Take a picture", ""); 
-         filey.close();
-    }
-    else
-    {
-      Serial.println("n enviado");
-    }
-  }
-  else
-  {
-    // if the file didn't open, print an error:
-    Serial.println("error opening photo");
-                bot.sendMessage(id, "n fique triste tente denovo erro ao acessar o arquivo", "");      
- }
-      
-    filey.close();
-      Serial.println("done funcao , ultima foto enviada do SPIFFS");
-      Serial.println("Deleting the camera task");
-  delay(100);
-  // vTaskDelete(Task5);
-}
-
-
-
-
-
 
 #endif

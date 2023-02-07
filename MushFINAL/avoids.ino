@@ -4,7 +4,6 @@
 //
 //  int read13 = digitalRead(13); -- pir for video
 
-int PIRpin = 13;
 
 static void setupinterrupts() {
 
@@ -71,10 +70,147 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
 
 
 
+
+
+
+
+
+
+
+void verifica1(void * parameter){
+   verifica();
+     Serial.print("Task VERIFICA running on core ");
+   Serial.println(xPortGetCoreID());
+    vTaskDelete(NULL);
+}
+
+
+
+
+void toque(){
+
+
+  //if (digitalRead(touchpin) == HIGH){ //SE A LEITURA DO PINO FOR IGUAL A HIGH, FAZ
+  
+  //digitalWrite(pinoLed,HIGH); //liga O LED onboard
+     Serial.print("Task TOQUE running on core ");
+     Serial.println(xPortGetCoreID());
+
+   
+
+
+
+
+if (led_state) {
+touchcounter++;
+led_state = false;
+  Serial.print("Contador de toque: ");
+     Serial.println(touchcounter);
+                
+if(touchcounter > 11){ touchcounter = 0;}
+        
+if (touchcounter == 0)
+  { 
+    ledState = "matrixon";
+    }
+
+if (touchcounter == 1)
+  {
+
+   
+   ledState = "ip";
+   
+    welcome = "ME TOCARAM!!!\n";
+    welcome += "Nome do bot:\n";
+    welcome +=  nomedobot.c_str();
+    welcome += "\n";
+    welcome += "MAC endereço:\n";
+    welcome += WiFi.macAddress();
+    welcome += "\n";
+    welcome += "Nivel de sinal WIFI: ";
+    welcome += WiFi.RSSI();
+    welcome += "\n";
+    welcome += "IP Local: ";
+    welcome += WiFi.localIP().toString();
+    welcome += "\n";
+    bot.sendMessage(id, welcome, "Markdown"); 
+
+   
+  }
+  if (touchcounter == 2)
+  { 
+    ledState = "green";
+    }
+   if (touchcounter == 3)
+  { 
+      ledState = "balls";
+    }
+   if (touchcounter == 4)
+  { 
+      ledState = "tetris";
+    }
+   if (touchcounter == 5)
+  { 
+      ledState = "rainbow2";
+    }
+  if (touchcounter == 6)
+  { 
+    ledState = "zebra";
+
+    }  
+ if (touchcounter == 7)
+  { 
+ ledState = "clock";
+}
+ if (touchcounter == 8)
+  { 
+ ledState = "ltc";
+}
+if (touchcounter == 9)
+  { 
+ ledState = "blue";
+}
+ if (touchcounter == 10)
+  { 
+ ledState = "fire2";
+}
+if (touchcounter == 11)
+  { 
+    ledState = "gif6";
+    }
+if (touchcounter == 12)
+  { 
+    ledState = "pride";
+    }
+  
+  }
+  else{ //SENÃO, FAZ
+   
+        led_state = true;
+        ledState = "ledoff";
+
+      Serial.println("Toque off");
+      delay(1000);
+     
+     
+     } 
+  
+   // vTaskDelay(1000 / portTICK_PERIOD_MS);
+  //  Serial.println("Deleta toque task");
+  delay(500);
+     //vTaskDelete(toquetask);
+  
+  
+
+  }
+
+  
+
+
 void verifica(){
 
     //   takeNewPhoto = true;
-    //   send_the_picture(); 
+    //   sendPhotoTelegram();
       
         time_t now = time(nullptr);
           time_now = String(ctime(&now)).substring(0,24);
@@ -104,8 +240,20 @@ void verifica(){
           msg += "\n";
           bot.sendMessage(id, msg, "");
           
-          addFile(SPIFFS, climaPath, msg.c_str());
-
+        //  addFile(SPIFFS, climaPath, msg.c_str());
+fs::FS &fs = SD_MMC; 
+  Serial.printf("file name: %s\n", climaPath);
+  
+  File file = fs.open(climaPath, FILE_APPEND);
+   if(!file){
+        Serial.println("Failed to open file for appending");
+        return;
+    }
+    if(file.print(msg.c_str())){
+        Serial.println("Message appended");
+    } else {
+        Serial.println("Append failed");
+    }
  
           
 }
@@ -118,6 +266,13 @@ void verifica(){
     
     
     void StartTime(){
+
+
+
+
+
+
+      
   // Note: The ESP8266 Time Zone does not function e.g. ,0,"time.nist.gov"
   configTime(TZone * 3600, 0, "pool.ntp.org", "time.nist.gov");
   // Change this line to suit your time zone, e.g. USA EST configTime(-5 * 3600, 0, "pool.ntp.org", "time.nist.gov");
@@ -133,7 +288,7 @@ void verifica(){
 
 // Sound sensor code
 void readVibra(){
-   valorvibra = digitalRead(vibra);
+   valorvibra = digitalRead(vibrapin);
 //Serial.println(valorvibra);
 //Serial.println("||");
 //Serial.println(analogRead(vibra));
@@ -228,7 +383,7 @@ if (color_counter == 9)
 }
 
 delay(1000);
-  //send_the_picture(); 
+  //sendPhotoTelegram();
   takeNewPhoto = true; 
 
 }
@@ -264,7 +419,25 @@ serializeJson(root, output);
 
  
 
- addFile(SPIFFS, loggerPath, output.c_str());
+ //addFile(SPIFFS, loggerPath, output.c_str());
+
+
+fs::FS &fs = SD_MMC; 
+  Serial.printf("file name: %s\n", loggerPath);
+  
+  File file = fs.open(loggerPath, FILE_APPEND);
+   if(!file){
+        Serial.println("Failed to open file for appending");
+        return;
+    }
+    if(file.print(output.c_str())){
+        Serial.println("Message appended");
+    } else {
+        Serial.println("Append failed");
+    }
+ 
+
+
 
 
  //##Obrigado santocyber por essa gambiarra aqui manda um pix rastanerdi@gmail.com , acabei usando tambem JSON.stringfy no proprio javascript
@@ -340,7 +513,7 @@ const String site = "https://www.bitstamp.net/api/v2/ticker/ltcusd";
      int httpCode = http.GET(); 
      Serial.println(site);                                                                                                                                                                                                                                              //Get crypto price from API
 
-DynamicJsonDocument doc3(2000);
+DynamicJsonDocument doc3(400);
     deserializeJson(doc3, http.getString());
    //   JsonObject obj = doc3.as<JsonObject>();
 
@@ -404,6 +577,9 @@ Serial.println(ETHUSDPrice.toDouble());
         delay(5000);                                   
 }
 
+
+
+    
 
 
 
@@ -510,7 +686,7 @@ const String url = "https://api.bitfinex.com/v1/pubticker/xmrusd";
     
         http.begin(url);
         int httpCode = http.GET();                                                                                                                                                                                                                                                //Get crypto price from API
-        StaticJsonDocument<2000> doc;
+        StaticJsonDocument<400> doc;
         DeserializationError error = deserializeJson(doc, http.getString());
     
         if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful
@@ -531,7 +707,7 @@ const String url = "https://api.bitfinex.com/v1/pubticker/xmrusd";
         Serial.print("XMR Price: ");                                                       //Display current price on serial monitor
         Serial.println(XMRPrice.toDouble());
 
-        http.end();               
+        http.end();  
         return String(XMRPrice.toDouble());
         delay(5000);                                   //Sleep for 15 minutes
 }

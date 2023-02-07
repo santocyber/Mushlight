@@ -3,6 +3,7 @@ void fast(void * parameter){
     FastLED.show();
      Serial.print("Task LED running on core ");
    Serial.println(xPortGetCoreID());
+   delay(50);
     vTaskDelete(NULL);
 }
 
