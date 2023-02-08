@@ -14,7 +14,10 @@ static void setupinterrupts() {
     Serial.print( digitalRead(PIRpin) ); Serial.print(", ");
   }
   Serial.println(" ");
-
+ //install gpio isr service
+    gpio_install_isr_service(0);
+    // gpio_install_isr_service();
+    
   esp_err_t err = gpio_isr_handler_add((gpio_num_t)PIRpin, &PIR_ISR, NULL);
 
   if (err != ESP_OK) Serial.printf("gpio_isr_handler_add failed (%x)", err);
@@ -96,8 +99,12 @@ void toque(){
      Serial.print("Task TOQUE running on core ");
      Serial.println(xPortGetCoreID());
 
-   
+         xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
 
+
+ledStateCAM = "flash";
+delay(300);
+ledStateCAM = "flashoff";
 
 
 

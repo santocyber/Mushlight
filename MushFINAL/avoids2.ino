@@ -5,10 +5,16 @@ void connect()//Funçao para Conectar ao wifi e verificar à conexao.
 {
    if (WiFi.status() != WL_CONNECTED)//Caso nao esteja conectado ao WiFi, Ira conectarse
    {
+   Serial.print("Task CONNECT running on core ");
+   Serial.println(xPortGetCoreID());
+   
     WiFi.begin(ssid.c_str(), pass.c_str());
     //WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+     delay(400);
+    client.setInsecure();
+     delay(400);
     client.setHandshakeTimeout(120000);
-    client.setTimeout(3000);
+   // client.setTimeout(3000);
 
     delay(10);
    }
@@ -22,6 +28,7 @@ void pingando(){
    Serial.println(xPortGetCoreID());
 
     if(Ping.ping("google.com", 1)) {
+      ConnectedCounter++;
  Serial.println("Ping pong OK contando....");
     Serial.print(Ping.averageTime());
     Serial.println(" ms");
@@ -105,6 +112,19 @@ readTel();
          ledState = "ledon";
          bot.sendMessage(id, ledState, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
+    if (text.indexOf("flash") > -1)//Caso o texto recebido contenha "ON"
+      {        
+  if(ledStateCAM == "flash"){
+         Serial.println("FLASHOFF");
+         bot.sendMessage(id, ledStateCAM, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+     
+         ledStateCAM = "flashoff";
+        }
+        else{
+           Serial.println("FLASH");
+      bot.sendMessage(id, ledStateCAM, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+          ledStateCAM = "flash";}         
+         }
 
       else if (text.indexOf("ledoff") > -1)//Caso o texto recebido contenha "OFF"
       {

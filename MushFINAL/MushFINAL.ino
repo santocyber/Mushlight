@@ -19,7 +19,8 @@
 #include "bitmap8.h"
 #include "bitmap9.h"
 #include <FS.h>
-#include "SD_MMC.h"            // SD Card ESP32
+#include <SD_MMC.h>
+#include <SD.h>
 #include <WiFiClientSecure.h>
 #include <time.h>
 #include <HTTPClient.h>
@@ -90,9 +91,9 @@ static void IRAM_ATTR PIR_ISR(void* arg) ;
 
 
 //#############################################################################Configura GPIO
-
+#define LEDBUILTIN  48 
 #define LED_PIN  42 //2
-#define co2pin   45
+#define co2pin   1
 #define vibrapin 15
 #define touchpin 14
 //#define pinoLed 2 //led onboard built-in
@@ -156,7 +157,7 @@ int frame_interval = 0;          // 0 = record at full speed, 100 = 100 ms delay
 float speed_up_factor = 0.5;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
 int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
 int quality = 10;
-int qualityconfig = 5;
+int qualityconfig = 4;
 
 struct tm timeinfo;
 time_t now;
@@ -261,6 +262,8 @@ int valortemp = 0;//Declara a variável valorldr como inteiro
 int valorhumi = 0;//Declara a variável valorldr como inteiro
 int valorvibra;
 
+
+String ledStateCAM;
 String ledState;
 boolean led_state = true;
 int clap_counter = 0;
@@ -414,7 +417,7 @@ byte eff = 0;
 #define NUM_LEDS WIDTH * HEIGHT * SEGMENTS
 #define CHIPSET WS2811
 CRGB leds[NUM_LEDS];
-
+CRGB ledflash[1];
 
 
 
@@ -587,6 +590,10 @@ String readFile(fs::FS &fs, const char * path){
   return fileContent;
 }
 
+ 
+
+
+
 // Write file to SPIFFS
 void writeFile(fs::FS &fs, const char * path, const char * message){
   Serial.printf("Writing file: %s\r\n", path);
@@ -623,6 +630,50 @@ void addFile(fs::FS &fs, const char * path, const char * message){
 
 
 
+//####################################### Configura voids do cartao SD
+
+String readFileSD(fs::FS &fs, const char * path){
+  Serial.printf("Reading file: %s\r\n", path);
+    File root = SD_MMC.open(path);
+
+  //File root = fs.open(path);
+  if(!root || root.isDirectory()){
+    Serial.println("- failed to open file for reading");
+    return String();
+  }
+  
+  String fileContent;
+  while(root.available()){
+    fileContent = root.readString();
+    break;     
+  }
+  fileContent.trim();
+  fileContent.length();
+  return fileContent;
+}
+
+
+void deleteFile(fs::FS &fs, const char * path){
+    Serial.printf("Deleting file: %s\n", path);
+    if(fs.remove(path)){
+        Serial.println("File deleted");
+    } else {
+        Serial.println("Delete failed");
+    }
+}
+
+
+void writeFileSD(fs::FS &fs, const char * path, const char * message){
+    Serial.printf("Writing file: %s\n", path);
+    //File root = SD_MMC.open(path, FILE_WRITE);
+
+    File root = fs.open(path, FILE_WRITE);
+    if(!root){
+        Serial.println("Failed to open file for writing");
+        return;
+    }
+   
+}
 
 
 //###########################################################INICIA TELEGRAM TOKEN via web
@@ -886,6 +937,8 @@ void setup() {
     Serial.setDebugOutput(true);
     Serial.println();
 
+    pinMode(LEDBUILTIN, OUTPUT);
+
 
     SD_MMC.setPins(SD_MMC_CLK, SD_MMC_CMD, SD_MMC_D0);
     if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 5)) {
@@ -953,7 +1006,7 @@ setupinterrupts();
 
   //Disable watchdog timers
   disableCore0WDT();
-  disableCore1WDT();
+ // disableCore1WDT();
   disableLoopWDT();
   esp_task_wdt_delete(NULL);
   //rtc_wdt_protect_off();
@@ -1007,6 +1060,8 @@ if (!setupCamera())
 #endif
  
 //########### LED
+
+    FastLED.addLeds<WS2812, LEDBUILTIN, GRB>(ledflash, 1).setCorrection(TypicalSMD5050);
 
 FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
   FastLED.setBrightness( BRIGHTNESS );
@@ -1168,26 +1223,38 @@ FastLED.delay(2000 / velovar);
 
 server.on("/lersd", HTTP_GET, listFilesOnWebPage);
 server.on("/lersdx/*", HTTP_GET, handleFile);
-
-
+server.on("/apagarsd", HTTP_GET, apagarsd);
+ 
 
 
        
     // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
    logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\",\"Hora\":\"22:00\"}";
-   logger += readFile(SPIFFS, loggerPath); 
+  
+    logger += readFileSD(SD_MMC, loggerPath); 
    logger += "]}";
   //###Q gambiarra pra funcionar o JSON
     request->send(200, "application/json", logger);
    request->send_P(200, "text/plain", logger.c_str());
    logger = String();
   });
+
+  // Route to set GPIO state to HIGH
+    server.on("/climalog", HTTP_GET, [](AsyncWebServerRequest *request) {
+    logger = "{\"clima\":[{";
+    logger += readFileSD(SD_MMC, climaPath); 
+    logger += "]}}";
+    request->send(200, "application/json", logger);
+   request->send_P(200, "text/plain", logger.c_str());
+   logger = String();
+  });
+
     
       // Route to set GPIO state to HIGH
     server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
-        verifica2();
-
+     verifica2();
+     verifica();
  
         request->send(SPIFFS, "/log.html", "text/html", false);
  
@@ -1207,8 +1274,8 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
         // Route to set GPIO state to HIGH
     server.on("/deletelog", HTTP_GET, [](AsyncWebServerRequest *request) {
      // ledState = "deletelog";
-      writeFile(SPIFFS, climaPath, "");
-        writeFile(SPIFFS, loggerPath, "");
+      writeFileSD(SPIFFS, climaPath, "");
+        writeFileSD(SPIFFS, loggerPath, "");
      // writeFile(SPIFFS, loggerPath, "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}");
       
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
@@ -1724,8 +1791,8 @@ ESP.restart();
       
       
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
+    Serial.println("TASK capture");
     takeNewPhoto = true;
-//    request->send_P(200, "text/plain", "Taking Photo");
     request->send(SPIFFS, "/index.html", "text/html", false, processor);
   });
 
@@ -1838,7 +1905,7 @@ FastLED.delay(2000 / velovar);
       }
 
 
-String configg = "Prontinho. MushLight reiniciando, clique no endereco abaixo";
+String configg = "Prontinho. MushLight reiniciando, conecte no seu WIFI e clique no endereco abaixo";
        configg += "<br><br>";
        configg += "CLIQUE -> VVVVVVVV";
        configg += "<br><br>";
@@ -1868,27 +1935,18 @@ String configg = "Prontinho. MushLight reiniciando, clique no endereco abaixo";
 
 void loop() {
 
-
-
-
-
-
-
  //##Loop paralelo
 
 
-#if (GAVALOG == 1)
+#if (GRAVALOG == 1)
     
 
-
-
-    
-    if (millis() - tempo6 > 5000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo6 > 10000)//Faz a verificaçao das funçoes a cada 30min
    {
-          Serial.println("ping pagina");
+          Serial.println("EVENTS ping pagina");
    events.send("ping",NULL,millis());
    events.send(getSensorReadings().c_str(),"new_readings" ,millis());
-   Serial.print(getSensorReadings().c_str());
+ //  Serial.println(getSensorReadings().c_str());
    
 
         //   xTaskCreate(sensorread,"Envia sensorread", 10000, NULL, 0, NULL);     
@@ -1934,11 +1992,17 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
 #endif
 
-     if (millis() - tempoping > 300000)//Faz a verificaçao das funçoes a cada 30min
+     if (millis() - tempoping > 100000)//Faz a verificaçao das funçoes a cada 30min
    {
           Serial.println("pingando");
       connect();
       pingando();
+
+      //esp_wifi_stop(); 
+    delay(200);
+    WiFi.disconnect();
+    delay(2000);
+    connect();
       tempoping = millis();
      
    }
@@ -2021,6 +2085,26 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
 
         // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
+  if (input.indexOf("reset") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("RESET!");
+         ESP.restart();
+       }
+  if (input.indexOf("flash") > -1)//Caso o texto recebido contenha "ON"
+      {
+
+        if(ledStateCAM == "flash"){
+         Serial.println("FLASHOFF");
+         ledStateCAM = "flashoff";
+        }
+        else{
+           Serial.println("FLASH");
+          ledStateCAM = "flash";}
+        
+       }
+
+       
+      
     delay(300);
     }
     delay(20);
@@ -2046,6 +2130,24 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
         // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
 
+  if (input.indexOf("reset") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("RESET!");
+         ESP.restart();
+       }
+   if (input.indexOf("flash") > -1)//Caso o texto recebido contenha "ON"
+      {
+
+        if(ledStateCAM == "flash"){
+         Serial.println("FLASHOFF");
+         ledStateCAM = "flashoff";
+        }
+        else{
+           Serial.println("FLASH");
+          ledStateCAM = "flash";}
+        
+       }
+
 
   }
 
@@ -2062,13 +2164,11 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
       xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 1);
       xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
 
-#endif
+
     takeNewPhoto = false;
      delay(600);
   }
   delay(50);
-
-
 
 
   if (picture_ready) {
@@ -2082,13 +2182,7 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
     send_the_video();
   }
 
-
-
-
-
-
-
-
+#endif
 
 
 ifs();

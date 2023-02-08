@@ -30,10 +30,15 @@ delay(200);
 
 
   
-pictureNumber = EEPROM.read(100) + 1;
 
   // Path where new picture will be saved in SD Card
-  String path = "/picture" + String(pictureNumber) +".jpg";
+        
+        time_t now = time(nullptr);
+
+
+  String path = "/picture";
+         path += time(&now);
+         path += ".jpg";
 
   fs::FS &fs = SD_MMC; 
   Serial.printf("Picture file name: %s\n", path.c_str());
@@ -43,12 +48,10 @@ pictureNumber = EEPROM.read(100) + 1;
     Serial.println("Failed to open file in writing mode");
   } 
   else {
-//     writeFile(SPIFFS, FI);
-    
+
     file.write(fb->buf, fb->len); // payload (image), payload length
     Serial.printf("Saved file to path: %s\n", path.c_str());
-    EEPROM.write(100, pictureNumber);
-    EEPROM.commit();
+
   }
   file.close();
   esp_camera_fb_return(fb); 
@@ -100,11 +103,18 @@ void capturePhotoSaveSpiffs( void ) {
     // Take a photo with the camera
     Serial.println("Taking a photo...");
 
+ledStateCAM = "flash";
+       fill_solid( ledflash, 1, CRGB::White);
+         FastLED.show();
+         
 fb = esp_camera_fb_get();
 esp_camera_fb_return(fb);
 delay(200);
 fb = esp_camera_fb_get();
 delay(200);
+
+ledStateCAM = "flashoff";
+
 
     if (!fb) {
       Serial.println("Camera capture failed");
@@ -604,7 +614,7 @@ void send_the_picture() {
                   isMoreDataAvailable, getNextByte, nullptr, nullptr);
   } else {
     String sent = bot.sendMultipartFormDataToTelegramWithCaption("sendPhoto", "photo", "img.jpg",
-                  "image/jpeg", "Telegram Request", id, fb_length,
+                  "image/jpeg", "Take a pictureee", id, fb_length,
                   isMoreDataAvailable, getNextByte, nullptr, nullptr);
   }
   esp_camera_fb_return(vid_fb);

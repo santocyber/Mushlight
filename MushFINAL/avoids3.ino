@@ -19,6 +19,15 @@ uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
    }
    }
 
+if (ledStateCAM == "flash") {
+
+    flash();
+    }
+    if (ledStateCAM == "flashoff") {
+
+    flashoff();
+    }
+
 if (ledState == "ledoff") {
 
     ledoff();

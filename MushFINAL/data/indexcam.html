@@ -47,9 +47,11 @@ navigator.serviceWorker.register('sw.js');
     <h2>MushLight Sorria</h2>
     <p>Leva 5 segundinhos para tirar uma foto.</p>
     <p>
+      <a href="./"><button class="button-on">Voltar</button><a/>
       <button class="button-on" onclick="rotatePhoto();">Gira</button>
       <button class="button-on" onclick="capturePhoto()">Tira Foto</button>
       <button class="button-on" onclick="location.reload();">Refresh</button>
+      <a href="lersd"><button class="button-on">LISTA</button><a/>
     </p>
   </div>
   <div><img src="saved-photo" id="photo" width="100%"></div>
@@ -62,7 +64,7 @@ navigator.serviceWorker.register('sw.js');
     xhr.send();
 setTimeout(function(){
   location.reload();
-}, 6000);
+}, 70000);
   }
 
   function rotatePhoto() {
@@ -76,7 +78,7 @@ setTimeout(function(){
 
 setTimeout(function(){
   capturePhoto();
-}, 4000);
+}, 60000);
 
 
 
