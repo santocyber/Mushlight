@@ -39,11 +39,10 @@ delay(200);
   String path = "/picture";
          path += time(&now);
          path += ".jpg";
-
-  fs::FS &fs = SD_MMC; 
+ 
   Serial.printf("Picture file name: %s\n", path.c_str());
   
-  File file = fs.open(path.c_str(), FILE_WRITE);
+  File file = SD_MMC.open(path.c_str(), FILE_WRITE);
   if(!file){
     Serial.println("Failed to open file in writing mode");
   } 
@@ -601,7 +600,10 @@ void end_avi() {
 
 
 void send_the_picture() {
-  digitalWrite(33, LOW);          // light on
+ledStateCAM = "flash";
+       fill_solid( ledflash, 1, CRGB::White);
+         FastLED.show();
+         
   currentByte = 0;
   fb_length = vid_fb->len;
   fb_buffer = vid_fb->buf;
@@ -610,21 +612,25 @@ void send_the_picture() {
 
   if (active_interupt) {
     String sent = bot.sendMultipartFormDataToTelegramWithCaption("sendPhoto", "photo", "img.jpg",
-                  "image/jpeg", "PIR Event!", id, fb_length,
+                  "image/jpeg", "PIR Event: " + nomedobot, id, fb_length,
                   isMoreDataAvailable, getNextByte, nullptr, nullptr);
   } else {
     String sent = bot.sendMultipartFormDataToTelegramWithCaption("sendPhoto", "photo", "img.jpg",
-                  "image/jpeg", "Take a pictureee", id, fb_length,
+                  "image/jpeg", "Take a pictureee: " + nomedobot, id, fb_length,
                   isMoreDataAvailable, getNextByte, nullptr, nullptr);
   }
   esp_camera_fb_return(vid_fb);
   bot.longPoll =  0;
-  digitalWrite(33, HIGH);          // light oFF
+
+ledStateCAM = "flashoff";
   if (!avi_enabled) active_interupt = false;
 }
 
 void send_the_video() {
-  digitalWrite(33, LOW);          // light on
+ledStateCAM = "flash";
+       fill_solid( ledflash, 1, CRGB::White);
+         FastLED.show();// light on
+         
   Serial.println("\n\n\nSending clip with caption");
   Serial.println("\n>>>>> Sending video as 512 byte blocks, with a caption, and with jzdelay of 0, bytes=  " + String(psram_avi_ptr - psram_avi_buf));
   avi_buf = psram_avi_buf;
@@ -633,11 +639,11 @@ void send_the_video() {
   avi_len = psram_avi_ptr - psram_avi_buf;
 
   String sent2 = bot.sendMultipartFormDataToTelegramWithCaption("sendDocument", "document", strftime_buf,
-                 "image/jpeg", "MushCAM alertaaa!", id, psram_avi_ptr - psram_avi_buf,
+                 "image/jpeg", "MushCAM alertaaa: " + nomedobot, id, psram_avi_ptr - psram_avi_buf,
                  avi_more, avi_next, nullptr, nullptr);
 
   Serial.println("done!");
-  digitalWrite(33, HIGH);          // light off
+ledStateCAM = "flashoff";
 
   bot.longPoll = 5;
   active_interupt = false;

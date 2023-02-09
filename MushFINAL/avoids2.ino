@@ -116,14 +116,16 @@ readTel();
       {        
   if(ledStateCAM == "flash"){
          Serial.println("FLASHOFF");
+         ledStateCAM = "flashoff";
          bot.sendMessage(id, ledStateCAM, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
      
-         ledStateCAM = "flashoff";
         }
         else{
            Serial.println("FLASH");
-      bot.sendMessage(id, ledStateCAM, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-          ledStateCAM = "flash";}         
+           ledStateCAM = "flash";} 
+           bot.sendMessage(id, ledStateCAM, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+              
+
          }
 
       else if (text.indexOf("ledoff") > -1)//Caso o texto recebido contenha "OFF"
@@ -165,7 +167,7 @@ readTel();
 
           bot.sendMessage(id, msg, "");
           
-       //   addFile(SPIFFS, climaPath, msg.c_str());
+         // appendFileSD(SD_MMC, climaPath, msg.c_str());
 
      }
 
@@ -230,7 +232,13 @@ readTel();
         bot.sendMessage(id, "Monitorando grupo do telegram, envie msg com / para aparecer na luminaria", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
 
+         else if (text.indexOf("bluetooth") > -1)//Caso o texto recebido contenha "OFF"
+      {
+        BLE();
+        bot.sendMessage(id, "Dente azul", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+      }
 
+      
     for (int j = 0; j < 2; j++) {
     camera_fb_t * newfb = esp_camera_fb_get();
     if (!newfb) {
@@ -263,8 +271,10 @@ readTel();
         bot.sendMessage(id, "Camera capture failed", "");
         return;
       }
-
-      // digitalWrite(FLASH_LED_PIN, LOW);
+      
+ledStateCAM = "flash";
+       fill_solid( ledflash, 1, CRGB::White);
+         FastLED.show();
 
       currentByte = 0;
       fb_length = fb->len;
@@ -279,9 +289,45 @@ readTel();
         dataAvailable = true;
 
         Serial.println("done!");
-      
+      ledStateCAM = "flashoff";
       esp_camera_fb_return(fb);
      }
+
+
+
+
+      else if (text.indexOf("caption") > -1){
+
+          fb = NULL;
+
+
+    //   digitalWrite(FLASH_LED_PIN, HIGH);
+
+      fb = esp_camera_fb_get();
+      esp_camera_fb_return(fb);
+      delay(100);
+
+      // Take Picture with Camera
+      fb = esp_camera_fb_get();
+      if (!fb) {
+        Serial.println("Camera capture failed");
+        bot.sendMessage(id, "Camera capture failed", "");
+        return;
+      }
+      
+            currentByte = 0;
+      fb_length = fb->len;
+      fb_buffer = fb->buf;
+      
+        Serial.println("\n>>>>> Sending with a caption, bytes=  " + String(fb_length));
+
+    String sent = bot.sendMultipartFormDataToTelegramWithCaption("sendPhoto", "photo", "img.jpg",
+                  "image/jpeg", "Take a pictureee: " + nomedobot, id, fb_length,
+                  isMoreDataAvailable, getNextByte, nullptr, nullptr);
+
+        Serial.println("done!");
+
+      }
 
 
                   else if (text.indexOf("sd") > -1)//Caso o texto recebido contenha "OFF"
@@ -323,9 +369,6 @@ readTel();
 
       esp_camera_fb_return(fb);
 
-
-      
-
       }
 
 
@@ -353,9 +396,22 @@ readTel();
     }
 
     else if (text.indexOf("/video") > -1){
- //     xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
 
-   // video_ready = true;
+
+  avi_enabled = true;
+
+      // record the video
+      bot.longPoll =  0;
+      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+
+     // xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 1);
+    //  xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
+
+      if ( the_camera_loop == NULL ) {
+        //vTaskDelete( xHandle );
+        Serial.printf("do_the_steaming_task failed to start! %d\n", the_camera_loop);
+      }
+        avi_enabled = false;
         
       }
       
@@ -371,8 +427,8 @@ readTel();
       {
         bot.sendMessage(id, "deletando log", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
         delay(500);
-        writeFile(SPIFFS, climaPath, "");
-        writeFile(SPIFFS, loggerPath, "");
+        writeFileSD(SD_MMC, climaPath, "");
+        writeFileSD(SD_MMC, loggerPath, "");
         
       }
 
@@ -400,7 +456,7 @@ Ping.ping("google.com", 1);
     welcome += "MMC Size:";
     welcome += SD_MMC.totalBytes();
     welcome += "\n"; 
-    welcome += "MMC USADOSize:";
+    welcome += "MMC Bytes USADO:";
     welcome += SD_MMC.usedBytes();
     welcome += "\n";
     welcome += "HEAP Size:";
@@ -425,6 +481,9 @@ Ping.ping("google.com", 1);
     welcome += "Numero de Falhas na internet: ";
     welcome += notConnectedCounter;
     welcome += "\n";
+    welcome += "Numero de PING na internet: ";
+    welcome += ConnectedCounter;
+    welcome += "\n";
     welcome += "Estado LED: ";
     welcome += ledState;
 
@@ -445,6 +504,9 @@ Ping.ping("google.com", 1);
       welcome +=  nomedobot.c_str();
       welcome += "\n";
       welcome += "/foto : Tira uma foto\n";
+      welcome += "/caption : Tira uma foto com legenda\n";
+      welcome += "/video : Grava um mini video clip\n";
+      welcome += "/flash : Liga e desliga o flash\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";
       welcome += "/clock : Mostra o relogio na MushlLght \n";
@@ -472,8 +534,8 @@ Ping.ping("google.com", 1);
 
    }
 //delay(200);
-client.flush();
-client.stop();
+//client.flush();
+//client.stop();
 //  vTaskDelete(NULL);
        //   vTaskDelete(teletask);
    // vTaskSuspend(NULL);

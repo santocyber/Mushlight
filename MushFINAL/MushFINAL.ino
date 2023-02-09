@@ -33,7 +33,7 @@
 
 //#######################################ATIVA FUNCOES
 
-#define USETOUCH 1
+#define USETOUCH 0
 #define GRAVALOG 1
 #define CAMERA 1
 #define SENSORES 1
@@ -41,7 +41,7 @@
 
 //##############################################ATIVA O bluetooth
 
-#include <esp_attr.h>
+//#include <esp_attr.h>
 //#include "soc/rtc_wdt.h"
 
 
@@ -60,7 +60,7 @@ BleSerial ble;
 #include "sdkconfig.h"
 #include "driver/rtc_io.h"
 #include <esp_system.h>
-#include <nvs_flash.h>
+//#include <nvs_flash.h>
 
 #if (CAMERA ==1)
 #include "esp_camera.h"
@@ -71,11 +71,11 @@ BleSerial ble;
 
 
 //################################################################################Task handle 
-#include <stdio.h>
+//#include <stdio.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "freertos/queue.h"
+//#include "freertos/queue.h"
 
 TaskHandle_t teletask = NULL;
 TaskHandle_t verificatask = NULL;
@@ -96,7 +96,6 @@ static void IRAM_ATTR PIR_ISR(void* arg) ;
 #define co2pin   1
 #define vibrapin 15
 #define touchpin 14
-//#define pinoLed 2 //led onboard built-in
 
 int PIRpin = 19;
 
@@ -137,121 +136,6 @@ HTTPClient http;
 
 
 
-//##########Configura cam
-boolean takeNewPhoto = false;
-
-
-const long gmtOffset_sec = 3600 * 10;
-const int daylightOffset_sec = 3600;
-// NTP Server - this is to put a time stanp in the file name
-const char* ntpServer = "pool.ntp.org";
-
-
-static const char vernum[] = "MushLightCAM0.1V";
-
-
-#if (CAMERA == 1)
-int max_frames = 150;
-framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-int frame_interval = 0;          // 0 = record at full speed, 100 = 100 ms delay between frames
-float speed_up_factor = 0.5;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
-int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
-int quality = 10;
-int qualityconfig = 4;
-
-struct tm timeinfo;
-time_t now;
-
-
-
-camera_fb_t * fb = NULL;
-camera_fb_t * vid_fb = NULL;
-
-TaskHandle_t the_camera_loop_task;
-void the_camera_loop(void* pvParameter) ;
-TaskHandle_t savesdtask;
-void savesd(void* pvParameter) ;
-
-
-
-bool video_ready = false;
-bool picture_ready = false;
-bool active_interupt = false;
-bool pir_enabled = true;
-bool avi_enabled = true;
-
-int avi_buf_size = 0;
-int idx_buf_size = 0;
-
-bool isMoreDataAvailable();
-
-
-////////////////////////////////  send photo as 512 byte blocks or jzblocksize 
-int currentByte;
-uint8_t* fb_buffer;
-size_t fb_length;
-
-bool isMoreDataAvailable() {
-  return (fb_length - currentByte);
-}
-
-uint8_t getNextByte() {
-  currentByte++;
-  return (fb_buffer[currentByte - 1]);
-}
-
-////////////////////////////////  send avi as 512 byte blocks or jzblocksize 
-int avi_ptr;
-uint8_t* avi_buf;
-size_t avi_len;
-
-bool avi_more() {
-  return (avi_len - avi_ptr);
-}
-
-uint8_t avi_next() {
-  avi_ptr++;
-  return (avi_buf[avi_ptr - 1]);
-}
-
-bool dataAvailable = false;
-
-
-///////////////////////////////
-
-uint8_t * psram_avi_buf = NULL;
-uint8_t * psram_idx_buf = NULL;
-uint8_t * psram_avi_ptr = 0;
-uint8_t * psram_idx_ptr = 0;
-char strftime_buf[64];
-
-
-
-
-
-/// defined(CAMERA_MODEL_ESP32S3_EYE)
-#define PWDN_GPIO_NUM -1
-#define RESET_GPIO_NUM -1
-#define XCLK_GPIO_NUM 15
-#define SIOD_GPIO_NUM 4
-#define SIOC_GPIO_NUM 5
-
-#define Y2_GPIO_NUM 11
-#define Y3_GPIO_NUM 9
-#define Y4_GPIO_NUM 8
-#define Y5_GPIO_NUM 10
-#define Y6_GPIO_NUM 12
-#define Y7_GPIO_NUM 18
-#define Y8_GPIO_NUM 17
-#define Y9_GPIO_NUM 16
-
-#define VSYNC_GPIO_NUM 6
-#define HREF_GPIO_NUM 7
-#define PCLK_GPIO_NUM 13
-
-
-#endif
-
 //##########CONFIG TEXTO
 String runningText = "MushLight";
 
@@ -262,30 +146,13 @@ int valortemp = 0;//Declara a variável valorldr como inteiro
 int valorhumi = 0;//Declara a variável valorldr como inteiro
 int valorvibra;
 
-
+String blueState;
 String ledStateCAM;
 String ledState;
 boolean led_state = true;
 int clap_counter = 0;
 int color_counter = 0;
 int touchcounter = 0;
-
-uint32_t notConnectedCounter = 0;
-uint32_t ConnectedCounter = 0;
-
-// Search for parameter in HTTP POST request
-const char* PARAM_INPUT_1 = "ssid";
-const char* PARAM_INPUT_2 = "pass";
-const char* PARAM_INPUT_5 = "tokentelegram";
-const char* PARAM_INPUT_11 = "clima";
-const char* PARAM_INPUT_12 = "logger";
-const char* PARAM_INPUT_6 = "txt";
-const char* PARAM_INPUT_7 = "cor";
-const char* PARAM_INPUT_8 = "text";
-const char* PARAM_INPUT_9 = "velocidade";
-const char* PARAM_INPUT_10 = "dimmer";
-const char* PARAM_INPUT_13 = "sleeptime";
-const char* PARAM_INPUT_14 = "nomedobot";
 
 //Variables to save values from HTML form
 String ssid;
@@ -306,6 +173,32 @@ String logger;
 String photo;
 
 
+String velovar;
+String veloframe;
+String dimmervar;
+
+
+
+
+uint32_t notConnectedCounter = 0;
+uint32_t ConnectedCounter = 0;
+
+// Search for parameter in HTTP POST request
+const char* PARAM_INPUT_1 = "ssid";
+const char* PARAM_INPUT_2 = "pass";
+const char* PARAM_INPUT_5 = "tokentelegram";
+const char* PARAM_INPUT_11 = "clima";
+const char* PARAM_INPUT_12 = "logger";
+const char* PARAM_INPUT_6 = "txt";
+const char* PARAM_INPUT_7 = "cor";
+const char* PARAM_INPUT_8 = "text";
+const char* PARAM_INPUT_9 = "velocidade";
+const char* PARAM_INPUT_10 = "dimmer";
+const char* PARAM_INPUT_13 = "sleeptime";
+const char* PARAM_INPUT_14 = "nomedobot";
+
+
+
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
 const char* passPath = "/pass.txt";
@@ -316,10 +209,6 @@ const char* loggerPath = "/data.txt";
 const char* FILE_PHOTO = "/photo.jpg";
 
 
-
-String velovar;
-String veloframe;
-String dimmervar;
 
 
 
@@ -535,6 +424,121 @@ boolean checkButtons() {
 
 
 
+//##########Configura cam
+boolean takeNewPhoto = false;
+
+
+const long gmtOffset_sec = 3600 * 10;
+const int daylightOffset_sec = 3600;
+// NTP Server - this is to put a time stanp in the file name
+const char* ntpServer = "pool.ntp.org";
+
+
+static const char vernum[] = "MushLightCAM0.1V";
+
+
+#if (CAMERA == 1)
+int max_frames = 100;
+framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
+int frame_interval = 200;          // 0 = record at full speed, 100 = 100 ms delay between frames
+float speed_up_factor = 1;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
+int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
+int quality = 10;
+int qualityconfig = 4;
+
+struct tm timeinfo;
+time_t now;
+
+
+
+camera_fb_t * fb = NULL;
+camera_fb_t * vid_fb = NULL;
+
+TaskHandle_t the_camera_loop_task;
+void the_camera_loop(void* pvParameter) ;
+TaskHandle_t savesdtask;
+void savesd(void* pvParameter) ;
+
+
+
+bool video_ready = false;
+bool picture_ready = false;
+bool active_interupt = false;
+bool pir_enabled = true;
+bool avi_enabled = true;
+
+int avi_buf_size = 0;
+int idx_buf_size = 0;
+
+bool isMoreDataAvailable();
+
+
+////////////////////////////////  send photo as 512 byte blocks or jzblocksize 
+int currentByte;
+uint8_t* fb_buffer;
+size_t fb_length;
+
+bool isMoreDataAvailable() {
+  return (fb_length - currentByte);
+}
+
+uint8_t getNextByte() {
+  currentByte++;
+  return (fb_buffer[currentByte - 1]);
+}
+
+////////////////////////////////  send avi as 512 byte blocks or jzblocksize 
+int avi_ptr;
+uint8_t* avi_buf;
+size_t avi_len;
+
+bool avi_more() {
+  return (avi_len - avi_ptr);
+}
+
+uint8_t avi_next() {
+  avi_ptr++;
+  return (avi_buf[avi_ptr - 1]);
+}
+
+bool dataAvailable = false;
+
+
+///////////////////////////////
+
+uint8_t * psram_avi_buf = NULL;
+uint8_t * psram_idx_buf = NULL;
+uint8_t * psram_avi_ptr = 0;
+uint8_t * psram_idx_ptr = 0;
+char strftime_buf[64];
+
+
+
+
+
+/// defined(CAMERA_MODEL_ESP32S3_EYE)
+#define PWDN_GPIO_NUM -1
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 15
+#define SIOD_GPIO_NUM 4
+#define SIOC_GPIO_NUM 5
+
+#define Y2_GPIO_NUM 11
+#define Y3_GPIO_NUM 9
+#define Y4_GPIO_NUM 8
+#define Y5_GPIO_NUM 10
+#define Y6_GPIO_NUM 12
+#define Y7_GPIO_NUM 18
+#define Y8_GPIO_NUM 17
+#define Y9_GPIO_NUM 16
+
+#define VSYNC_GPIO_NUM 6
+#define HREF_GPIO_NUM 7
+#define PCLK_GPIO_NUM 13
+
+
+#endif
+
 
 //################### Arquivos 
 // Initialize SPIFFS
@@ -674,6 +678,24 @@ void writeFileSD(fs::FS &fs, const char * path, const char * message){
     }
    
 }
+
+
+
+void appendFileSD(fs::FS &fs, const char * path, const char * message){
+    Serial.printf("Appending to file: %s\n", path);
+
+    File file = fs.open(path, FILE_APPEND);
+    if(!file){
+        Serial.println("Failed to open file for appending");
+        return;
+    }
+    if(file.print(message)){
+        Serial.println("Message appended");
+    } else {
+        Serial.println("Append failed");
+    }
+}
+
 
 
 //###########################################################INICIA TELEGRAM TOKEN via web
@@ -913,6 +935,7 @@ bool setupCamera()
     Serial.printf("Camera init failed with error 0x%x", err);
     return false;
   }
+ 
   free(memtmp2);
   memtmp2 = NULL;
   free(memtmp);
@@ -991,7 +1014,7 @@ void setup() {
 
   //desahabilita o watchdog configurando o timeout para 40 segundos
 
-  esp_task_wdt_init(60, false);
+  esp_task_wdt_init(30, true);
 
 //xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );     
 // xTaskCreate(tele,"READ TEL", 45000, NULL, 0, NULL);     
@@ -1016,24 +1039,12 @@ setupinterrupts();
  //// xTaskCreate(ReadSerialTask, "ReadSerialTask", 10240, NULL, 1, NULL);
   //xTaskCreate(ReadBtTask, "ReadBtTask", 10240, NULL, 1, NULL);
 
-#if (BLEX == 1)
-//#####################################Configura BLEX
-
-  ble.begin("MushLight");
-
-  BLESecurity *pSecurity = new BLESecurity();
-  pSecurity->setStaticPIN(123456); 
-  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
-  
-  //set static passkey
-  Serial.println("Characteristic defined! Now you can read it in your phone!");
- #endif
- 
 
     EEPROM.begin(512);
 
 // Turn-off the 'brownout detector'
  // WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
 
 
 
@@ -1223,9 +1234,13 @@ FastLED.delay(2000 / velovar);
 
 server.on("/lersd", HTTP_GET, listFilesOnWebPage);
 server.on("/lersdx/*", HTTP_GET, handleFile);
-server.on("/apagarsd", HTTP_GET, apagarsd);
  
-
+      // Route to set GPIO state to HIGH
+    server.on("/apagarsd", HTTP_GET, [](AsyncWebServerRequest *request) {
+    apagarsd();
+    request->send(200, "text/html", "Arquivos apagados<br><br><a href='./'>VOLTAR</a>");
+ 
+    });
 
        
     // Route to set GPIO state to HIGH
@@ -1242,9 +1257,9 @@ server.on("/apagarsd", HTTP_GET, apagarsd);
 
   // Route to set GPIO state to HIGH
     server.on("/climalog", HTTP_GET, [](AsyncWebServerRequest *request) {
-    logger = "{\"clima\":[{";
-    logger += readFileSD(SD_MMC, climaPath); 
-    logger += "]}}";
+    logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\",\"Hora\":\"22:00\"}";
+     logger += readFileSD(SD_MMC, climaPath); 
+    logger += "]}";
     request->send(200, "application/json", logger);
    request->send_P(200, "text/plain", logger.c_str());
    logger = String();
@@ -1274,8 +1289,8 @@ server.on("/apagarsd", HTTP_GET, apagarsd);
         // Route to set GPIO state to HIGH
     server.on("/deletelog", HTTP_GET, [](AsyncWebServerRequest *request) {
      // ledState = "deletelog";
-      writeFileSD(SPIFFS, climaPath, "");
-        writeFileSD(SPIFFS, loggerPath, "");
+      writeFileSD(SD_MMC, climaPath, "");
+        writeFileSD(SD_MMC, loggerPath, "");
      // writeFile(SPIFFS, loggerPath, "{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\"}");
       
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
@@ -1927,6 +1942,34 @@ String configg = "Prontinho. MushLight reiniciando, conecte no seu WIFI e clique
   }
 
 
+
+#if (BLEX == 1)
+
+ ble.begin("MushLight");
+   BLESecurity *pSecurity = new BLESecurity();
+  pSecurity->setStaticPIN(123456); 
+  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
+
+#endif
+
+
+
+       fill_solid( ledflash, 1, CRGB::Red);
+         FastLED.show();
+         delay(500);
+       fill_solid( ledflash, 1, CRGB::Green);
+         FastLED.show();
+         delay(500);
+       fill_solid( ledflash, 1, CRGB::Blue);
+         FastLED.show();
+         delay(500);
+       fill_solid( ledflash, 1, CRGB::White);
+         FastLED.show();
+         delay(500);
+       fill_solid( ledflash, 1, CRGB::Black);
+         FastLED.show();
+
+
 }
 
 
@@ -1941,7 +1984,7 @@ void loop() {
 #if (GRAVALOG == 1)
     
 
-    if (millis() - tempo6 > 10000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo6 > 15000)//Faz a verificaçao das funçoes a cada 30min
    {
           Serial.println("EVENTS ping pagina");
    events.send("ping",NULL,millis());
@@ -1992,7 +2035,7 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
 #endif
 
-     if (millis() - tempoping > 100000)//Faz a verificaçao das funçoes a cada 30min
+     if (millis() - tempoping > 120000)//Faz a verificaçao das funçoes a cada 30min
    {
           Serial.println("pingando");
       connect();
@@ -2001,8 +2044,13 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
       //esp_wifi_stop(); 
     delay(200);
     WiFi.disconnect();
-    delay(2000);
+    delay(1000);
     connect();
+
+    if(blueState == "on"){
+        BLE();
+        ble.println("Hello!");
+}
       tempoping = millis();
      
    }
@@ -2015,10 +2063,7 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
         connect();
         readTel();
-#if (BLEX == 1)
-        
-        ble.println("Hello!");
-#endif
+
         
       tempotelegram = millis();
      
@@ -2147,6 +2192,13 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
           ledStateCAM = "flash";}
         
        }
+
+  if (input.indexOf("ble") > -1)//Caso o texto recebido contenha "ON"
+      {
+         Serial.println("BLUETOOTH!");
+         BLE();
+       }
+
 
 
   }

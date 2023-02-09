@@ -68,8 +68,31 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
 
 
 
+void BLE(){
 
+if (blueState == "on"){  
 
+//#####################################Configura BLEX
+
+  ble.begin("MushLight");
+
+  BLESecurity *pSecurity = new BLESecurity();
+  pSecurity->setStaticPIN(123456); 
+  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
+  
+  //set static passkey
+  Serial.println("Characteristic defined! Now you can read it in your phone!");
+
+blueState = "off";
+}
+else{
+  ble.end();
+  blueState = "on";
+  
+  }
+ 
+ 
+}
 
 
 
@@ -215,56 +238,72 @@ if (touchcounter == 12)
 
 
 void verifica(){
+time_t now = time(nullptr);
+ time_now = String(ctime(&now)).substring(0,24);
+//addFile(SPIFFS, loggerPath, msg.c_str());
 
-    //   takeNewPhoto = true;
-    //   sendPhotoTelegram();
-      
-        time_t now = time(nullptr);
-          time_now = String(ctime(&now)).substring(0,24);
-
-          String msg = nomedobot.c_str(); 
-          msg += ",";          
-          msg += "\n";
-          msg += "Hora:"; 
-          msg += time_now;
-          msg += ",";
-          msg += "\n";
-          msg += "Temperatura:";
-          msg += msg.concat(readDHTTemperature());
-          msg += "C,";
-          msg += "\n";
-          msg += "Umidade:";
-          msg += msg.concat(readDHTHumidity());
-          msg += "%,"; 
-          msg += "\n";
-          msg += "Pressao:";
-          msg += msg.concat(readDHTPressao());
-          msg += " Pa,"; 
-          msg += "\n";
-          msg += "CO2:";
-          msg += msg.concat(readCO2());
-          msg += " PPM,"; 
-          msg += "\n";
-          bot.sendMessage(id, msg, "");
-          
-        //  addFile(SPIFFS, climaPath, msg.c_str());
-fs::FS &fs = SD_MMC; 
-  Serial.printf("file name: %s\n", climaPath);
-  
-  File file = fs.open(climaPath, FILE_APPEND);
-   if(!file){
-        Serial.println("Failed to open file for appending");
-        return;
-    }
-    if(file.print(msg.c_str())){
-        Serial.println("Message appended");
-    } else {
-        Serial.println("Append failed");
-    }
+DynamicJsonDocument root(200);
+  //JsonObject root = jsonBuffer.as<JsonObject>();
+//JsonArray& arr = jb.createArray();
+  root["Hora"] = time_now;
+  root["Temperatura"] = readDHTTemperature();
+  root["Umidade"] = readDHTHumidity();
+  root["Pressao"] = readDHTPressao();
+  root["CO2"] = readCO2();
  
-          
+ String output;
+    
+  output = ",";
+serializeJson(root, output);
+     output += "";
+
+ 
+
+appendFileSD(SD_MMC, climaPath, output.c_str());
+//bot.sendMessage(id, output, "");
+
+
 }
 
+
+
+
+
+void verifica2(){
+  
+time_t now = time(nullptr);
+ time_now = String(ctime(&now)).substring(0,24);
+//addFile(SPIFFS, loggerPath, msg.c_str());
+
+DynamicJsonDocument root(200);
+  //JsonObject root = jsonBuffer.as<JsonObject>();
+//JsonArray& arr = jb.createArray();
+
+  root["Temperatura"] = readDHTTemperature();
+  root["Umidade"] = readDHTHumidity();
+  root["Pressao"] = readDHTPressao();
+  root["CO2"] = readCO2();
+  root["Hora"] = time_now;
+
+
+ 
+ String output;
+    
+  output = ",";
+serializeJson(root, output);
+     output += "";
+
+ 
+
+ //addFile(SPIFFS, loggerPath, output.c_str());
+appendFileSD(SD_MMC, loggerPath, output.c_str());
+
+
+
+ //##Obrigado santocyber por essa gambiarra aqui manda um pix rastanerdi@gmail.com , acabei usando tambem JSON.stringfy no proprio javascript
+//return output;  
+
+}
 
 
 
@@ -397,60 +436,6 @@ delay(1000);
 
 
 
-
-
-
-void verifica2(){
-  
-time_t now = time(nullptr);
- time_now = String(ctime(&now)).substring(0,24);
-//addFile(SPIFFS, loggerPath, msg.c_str());
-
-DynamicJsonDocument root(200);
-  //JsonObject root = jsonBuffer.as<JsonObject>();
-//JsonArray& arr = jb.createArray();
-
-  root["Temperatura"] = readDHTTemperature();
-  root["Umidade"] = readDHTHumidity();
-  root["Pressao"] = readDHTPressao();
-  root["CO2"] = readCO2();
-  root["Hora"] = time_now;
-
-
- 
- String output;
-    
-  output = ",";
-serializeJson(root, output);
-     output += "";
-
- 
-
- //addFile(SPIFFS, loggerPath, output.c_str());
-
-
-fs::FS &fs = SD_MMC; 
-  Serial.printf("file name: %s\n", loggerPath);
-  
-  File file = fs.open(loggerPath, FILE_APPEND);
-   if(!file){
-        Serial.println("Failed to open file for appending");
-        return;
-    }
-    if(file.print(output.c_str())){
-        Serial.println("Message appended");
-    } else {
-        Serial.println("Append failed");
-    }
- 
-
-
-
-
- //##Obrigado santocyber por essa gambiarra aqui manda um pix rastanerdi@gmail.com , acabei usando tambem JSON.stringfy no proprio javascript
-//return output;  
-
-}
 
 
 

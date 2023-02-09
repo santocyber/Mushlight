@@ -1,29 +1,27 @@
 //feito pela AI
 
 
-void apagarsd(AsyncWebServerRequest *request) {
+void apagarsd() {
      File root = SD_MMC.open("/");
 
     while(File file = root.openNextFile()) {
       if (!file.isDirectory()) {
       //  file.remove();
-const char *fileName = file.name();
+String fileName = "/";
+       fileName += file.name();
 
       //fs::FS &fs = SD_MMC;
-      deleteFile(SD_MMC, fileName);
-       // fs.remove(fileName);
+      deleteFile(SD_MMC, fileName.c_str());
+        //fs.remove("/" + fileName);
 
 
 Serial.println("Deleting file: ");
 Serial.println(fileName);
-if (!SD_MMC.remove(fileName)) {
-  Serial.println("File deletion failed");
-}
+
 
         
       file = root.openNextFile();
     }}
-    request->send(200, "text/plain", "Todos os arquivos foram apagados");
   }
 
 
@@ -60,7 +58,7 @@ void listFilesOnWebPage(AsyncWebServerRequest *request) {
 
 
 void handleFile(AsyncWebServerRequest *request) {
-File root = SD_MMC.open("/");
+File root = SD_MMC.open("/sdcard");
 
   String fileName = request->url();
     fileName.remove(0, 7);
