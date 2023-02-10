@@ -68,37 +68,57 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
 
 
 
-void BLE(){
 
-if (blueState == "on"){  
+void bluetoothvoid(){
+ Serial.println("1- Download and install an BLE scanner app in your phone");
+  Serial.println("2- Scan for BLE devices in the app");
+  Serial.println("3- Connect to MyESP32");
+  Serial.println("4- Go to CUSTOM CHARACTERISTIC in CUSTOM SERVICE and write something");
+  Serial.println("5- See the magic =)");
 
-//#####################################Configura BLEX
+  BLEDevice::init("MushLight::mirako.org");
+  BLEServer *pServer = BLEDevice::createServer();
 
-  ble.begin("MushLight");
+  BLEService *pService = pServer->createService(SERVICE_UUID);
 
-  BLESecurity *pSecurity = new BLESecurity();
-  pSecurity->setStaticPIN(123456); 
-  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
+  BLECharacteristic *pCharacteristic = pService->createCharacteristic(
+                                         CHARACTERISTIC_UUID,
+                                         BLECharacteristic::PROPERTY_READ |
+                                         BLECharacteristic::PROPERTY_WRITE |
+                                         BLECharacteristic::PROPERTY_NOTIFY
+                                       );
+
+  pCharacteristic->setCallbacks(new MyCallbacks());
+    pCharacteristic->addDescriptor(new BLE2902());
+
+  pCharacteristic->setValue("Hello World");
+  pService->start();
+
+   BLEAdvertising *pAdvertising = pServer->getAdvertising();  // this still is working for backward compatibility
+  //BLEAdvertising *pAdvertising = pServer->getAdvertising();
+   BLEBeacon myBeacon;
+  myBeacon.setManufacturerId(0x4c00);
+  myBeacon.setMajor(5);
+  myBeacon.setMinor(88);
+  myBeacon.setSignalPower(0xc5);
+  myBeacon.setProximityUUID(BLEUUID(BEACON_UUID_REV));
+
+  BLEAdvertisementData advertisementData;
+  advertisementData.setFlags(0x1A);
+  advertisementData.setManufacturerData(myBeacon.getData());
+  pAdvertising->setAdvertisementData(advertisementData);
+
+  pAdvertising->start();
+  pAdvertising->addServiceUUID(SERVICE_UUID);
+  pAdvertising->setScanResponse(true);
+  pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
+  pAdvertising->setMinPreferred(0x12);
+  BLEDevice::startAdvertising();
   
-  //set static passkey
   Serial.println("Characteristic defined! Now you can read it in your phone!");
 
-blueState = "off";
-}
-else{
-  ble.end();
-  blueState = "on";
-  
+
   }
- 
- 
-}
-
-
-
-
-
-
 
 
 

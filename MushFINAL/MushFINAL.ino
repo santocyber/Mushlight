@@ -39,54 +39,6 @@
 #define SENSORES 1
 #define BLEX 1
 
-//##############################################ATIVA O bluetooth
-
-//#include <esp_attr.h>
-//#include "soc/rtc_wdt.h"
-
-
-#if (BLEX == 1)
-
-#include <BleSerial.h>
-
-BleSerial ble;
-#endif
-//################## IWDT
-#include <ESP32Ping.h>
-
-#include <esp_task_wdt.h>
-#include "soc/rtc_cntl_reg.h"  // Disable brownour problems
-#include "soc/soc.h"           // Disable brownour problems
-#include "sdkconfig.h"
-#include "driver/rtc_io.h"
-#include <esp_system.h>
-//#include <nvs_flash.h>
-
-#if (CAMERA ==1)
-#include "esp_camera.h"
-#endif
-
-#define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
-
-
-
-//################################################################################Task handle 
-//#include <stdio.h>
-#include <driver/gpio.h>
-#include <freertos/FreeRTOS.h>
-#include <freertos/task.h>
-//#include "freertos/queue.h"
-
-TaskHandle_t teletask = NULL;
-TaskHandle_t verificatask = NULL;
-TaskHandle_t cameratask = NULL;
-TaskHandle_t toquetask = NULL;
-
-
-//void toque (void* pvParameters);
-
-static void IRAM_ATTR PIR_ISR(void* arg) ;
-
 
 
 
@@ -109,8 +61,6 @@ int PIRpin = 19;
 #define SD_MMC_D0  40 //Please do not modify it.
 
 
-
-
 //TwoWire I2C = TwoWire(1);
 //Wire.begin(I2C_SDA, I2C_SCL);
 
@@ -124,6 +74,80 @@ Adafruit_BMP280 bmp;
 
 
 
+//##############################################ATIVA O bluetooth
+
+#include <esp_attr.h>
+
+#if (BLEX == 1)
+
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEServer.h>
+#include <BLE2902.h>
+#include <BLEBeacon.h>
+
+// See the following for generating UUIDs:
+// https://www.uuidgenerator.net/
+
+#define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
+#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
+#define BEACON_UUID            "2D7A9F0C-E0E8-4CC9-A71B-A21DB2D034A1"
+#define BEACON_UUID_REV        "A134D0B2-1DA2-1BA7-C94C-E8E00C9F7A2D"
+
+
+class MyCallbacks: public BLECharacteristicCallbacks {
+    void onWrite(BLECharacteristic *pCharacteristic) {
+      std::string input = pCharacteristic->getValue();
+
+     
+             if (input.length() > 0) {
+
+               for (int i = 0; i < input.length(); i++) {
+          Serial.print(input[i]);
+
+}}
+
+
+        Serial.println();
+        Serial.println("*********");
+      
+    }
+};
+#endif
+
+
+//################## IWDT
+#include <ESP32Ping.h>
+#include <esp_task_wdt.h>
+
+
+#if (CAMERA ==1)
+
+#include "soc/rtc_cntl_reg.h"  // Disable brownour problems
+#include "soc/soc.h"           // Disable brownour problems
+#include "sdkconfig.h"
+#include "driver/rtc_io.h"
+#include <esp_system.h>
+#include <nvs_flash.h>
+#include "esp_camera.h"
+#endif
+
+#define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
+
+
+
+//################################################################################Task handle 
+#include <stdio.h>
+#include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/task.h>
+#include "freertos/queue.h"
+
+//void toque (void* pvParameters);
+
+static void IRAM_ATTR PIR_ISR(void* arg) ;
+
+
 //############################################ Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -134,11 +158,6 @@ AsyncEventSource events("/events");
 const int httpsPort = 443;
 HTTPClient http;
 
-
-
-//##########CONFIG TEXTO
-String runningText = "MushLight";
-
 //####################################################Configura variaveis
 
 int valoratm = 0;//Declara a variável valorldr como inteiro
@@ -146,7 +165,11 @@ int valortemp = 0;//Declara a variável valorldr como inteiro
 int valorhumi = 0;//Declara a variável valorldr como inteiro
 int valorvibra;
 
-String blueState;
+
+
+String runningText = "MushLight";
+String timeLapse = "timeLapseOFF";
+String blueState = "bluetoothOFF";
 String ledStateCAM;
 String ledState;
 boolean led_state = true;
@@ -172,13 +195,9 @@ String readings;
 String logger;
 String photo;
 
-
 String velovar;
 String veloframe;
 String dimmervar;
-
-
-
 
 uint32_t notConnectedCounter = 0;
 uint32_t ConnectedCounter = 0;
@@ -198,7 +217,6 @@ const char* PARAM_INPUT_13 = "sleeptime";
 const char* PARAM_INPUT_14 = "nomedobot";
 
 
-
 // File paths to save input values permanently
 const char* ssidPath = "/ssid.txt";
 const char* passPath = "/pass.txt";
@@ -207,10 +225,6 @@ const char* tokentelegramPath = "/tokentelegram.txt";
 const char* climaPath = "/clima.txt";
 const char* loggerPath = "/data.txt";
 const char* FILE_PHOTO = "/photo.jpg";
-
-
-
-
 
 
 //##configura o millis
@@ -228,6 +242,7 @@ unsigned long tempo9 = millis();
 unsigned long tempo10 = millis();
 unsigned long tempoping = millis();
 unsigned long tempotelegram = millis();
+unsigned long tempotimelapse = millis();
 
 //######Config sleep
 unsigned long temposleep0;
@@ -252,7 +267,6 @@ boolean AUTOPLAY = 1;
 #define USE_SNAKE 1        
 #define USE_TETRIS 1 
 #define USE_ARKAN  1 
-#define CAM 1
 
 
 int scrollSpeed = D_TEXT_SPEED;    // скорость прокрутки текста бегущей строки
@@ -308,7 +322,8 @@ byte eff = 0;
 CRGB leds[NUM_LEDS];
 CRGB ledflash[1];
 
-
+#define GLOBAL_COLOR_1 CRGB::Green    
+#define GLOBAL_COLOR_2 CRGB::Orange  
 
 #define MATRIX_TYPE 0 
 #define CONNECTION_ANGLE 0    
@@ -334,10 +349,6 @@ CRGB ledflash[1];
 #define BRIGHTNESS 255
 #define CURRENT_LIMIT 2000
 
-
-
-
-
 bool gReverseDirection = false;
 unsigned char matrixValue[8][16];
 unsigned char line[WIDTH];
@@ -360,7 +371,6 @@ timerMinim saveSettingsTimer(15000);
 timerMinim dawnTimer(4294967295);                       
 
 
-
 //############CONFIG TIMER
 #define UDP_PACKET_MAX_SIZE 1024
 char incomeBuffer[UDP_PACKET_MAX_SIZE]; 
@@ -373,7 +383,6 @@ NTPClient timeClient(ntpUDP, NTP_ADDRESS, NTP_OFFSET, NTP_INTERVAL);
 const int udpPort = 3333;
 
 
-
 //#####Configura data logger
 String    time_now;
 #define TZone -3
@@ -383,12 +392,6 @@ unsigned long cSegundos = 0;
 unsigned int segundos = 0;
 byte minutos = 0;
 
-
-
-
-
-#define GLOBAL_COLOR_1 CRGB::Green    
-#define GLOBAL_COLOR_2 CRGB::Orange   
 
 //##################### Configura IP
 
@@ -438,10 +441,10 @@ static const char vernum[] = "MushLightCAM0.1V";
 
 
 #if (CAMERA == 1)
-int max_frames = 100;
+int max_frames = 400;
 framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
 int frame_interval = 200;          // 0 = record at full speed, 100 = 100 ms delay between frames
-float speed_up_factor = 1;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
+float speed_up_factor = 10;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
 int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
 int quality = 10;
 int qualityconfig = 4;
@@ -513,9 +516,6 @@ uint8_t * psram_idx_ptr = 0;
 char strftime_buf[64];
 
 
-
-
-
 /// defined(CAMERA_MODEL_ESP32S3_EYE)
 #define PWDN_GPIO_NUM -1
 #define RESET_GPIO_NUM -1
@@ -540,7 +540,7 @@ char strftime_buf[64];
 #endif
 
 
-//################### Arquivos 
+//############################################################### Arquivos 
 // Initialize SPIFFS
 void initSPIFFS() {
   if (!SPIFFS.begin(true)) {
@@ -634,7 +634,7 @@ void addFile(fs::FS &fs, const char * path, const char * message){
 
 
 
-//####################################### Configura voids do cartao SD
+//####################################### Configura  cartao SD
 
 String readFileSD(fs::FS &fs, const char * path){
   Serial.printf("Reading file: %s\r\n", path);
@@ -719,7 +719,7 @@ UniversalTelegramBot bot(tokentele, client);
 //######################################################################## Initialize WiFi
 bool initWiFi() {
   if(ssid==""){
-    Serial.println("Undefined SSID");
+    Serial.println(" SSID indefindo");
     return false;
   }
 
@@ -739,9 +739,6 @@ bool initWiFi() {
   
     timeClient.begin();
     timeClient.update();
-  //  readTel(void * pvParameters );
-  //  verifica();
-  //  verifica2();
     StartTime();
 
 
@@ -1005,23 +1002,9 @@ void setup() {
   psram_idx_buf = (uint8_t*)ps_malloc(idx_buf_size); // save file in psram
   if (psram_idx_buf == 0) Serial.printf("psram_idx allocation failed\n");
 
-
-
-
-
-
-    
-
-  //desahabilita o watchdog configurando o timeout para 40 segundos
+  //desahabilita o watchdog configurando o timeout para 30 segundos
 
   esp_task_wdt_init(30, true);
-
-//xTaskCreate(fast,"FAST LED", 1000, NULL, 1, NULL );     
-// xTaskCreate(tele,"READ TEL", 45000, NULL, 0, NULL);     
-//xTaskCreatePinnedToCore(tele, "READTEL", 20000, NULL , 10, &teletask, 1);     
-
-
-
 
 //inicia PIR
 setupinterrupts();
@@ -1035,22 +1018,13 @@ setupinterrupts();
   //rtc_wdt_protect_off();
   //rtc_wdt_disable();
 
-  //Start tasks
- //// xTaskCreate(ReadSerialTask, "ReadSerialTask", 10240, NULL, 1, NULL);
-  //xTaskCreate(ReadBtTask, "ReadBtTask", 10240, NULL, 1, NULL);
-
 
     EEPROM.begin(512);
 
 // Turn-off the 'brownout detector'
  // WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-
-
-
 //#########################################################inicia sensores tem umi pressao
-
-
 
 
 #if (SENSORES == 1)
@@ -1074,30 +1048,28 @@ if (!setupCamera())
 
     FastLED.addLeds<WS2812, LEDBUILTIN, GRB>(ledflash, 1).setCorrection(TypicalSMD5050);
 
-FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
-  FastLED.setBrightness( BRIGHTNESS );
+    FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalSMD5050);
+    FastLED.setBrightness( BRIGHTNESS );
 
  // if (CURRENT_LIMIT > 0) FastLED.setMaxPowerInVoltsAndMilliamps(5, CURRENT_LIMIT);
-  FastLED.clear();
-  FastLED.show();
+//   FastLED.clear();
+   FastLED.show();
   //randomSeed(analogRead(0) + analogRead(1));
 
 
 
 
  //########################Le arquivos gravados             
-//ja foi iniciado no telegram
-
+  //ja foi iniciado no telegram
   //initSPIFFS();
-
   
   // Load values saved in SPIFFS
   ssid = readFile(SPIFFS, ssidPath);
   pass = readFile(SPIFFS, passPath);
   nomedobot = readFile(SPIFFS, nomedobotPath);
   tokentelegram = readFile (SPIFFS, tokentelegramPath);
-  clima = readFile (SPIFFS, climaPath);
-  logger = readTotal (SPIFFS, loggerPath);
+//  clima = readFile (SPIFFS, climaPath);
+//  logger = readTotal (SPIFFS, loggerPath);
   photo = readFile (SPIFFS, FILE_PHOTO);
 
   Serial.println(ssid);
@@ -1107,26 +1079,13 @@ FastLED.addLeds<CHIPSET, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(Typ
  // Serial.println(logger);
 
 
-
-
-
-
-
-
-
-
-
-
   if(initWiFi()) {
 
-delay(200);
+   delay(200);
 //client.setCACert(TELEGRAM_CERTIFICATE_ROOT); // Add root certificate for api.telegram.org
- client.setTimeout(2000);
+   client.setTimeout(2000);
 
- client.setInsecure();
- //xTaskCreatePinnedToCore(tele, "READTEL", configMINIMAL_STACK_SIZE + 20000, NULL , 1, &teletask, 0);   
- //xTaskCreate(tele,"READTEL", configMINIMAL_STACK_SIZE + 20000, NULL, 0, &teletask);     
- //xTaskCreate(toque,"Toque", configMINIMAL_STACK_SIZE + 2000, NULL, 0, &toquetask);     
+   client.setInsecure();
 
 delay(500);
 
@@ -1213,13 +1172,13 @@ delay(200);
             // request->send(200, "text/html", "<a href='../runningtext' Executar</a><br><br>Mensagem enviada:" + txt );
     }}}
       
-uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
+    uint32_t dimmervar = strtoul(dimmer.c_str(), NULL, 16);
 //uint32_t corvar = strtoul(cor.c_str(), NULL, 16);
-uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
+    uint32_t velovar = strtoul(velocidade.c_str(), NULL, 16);
 //long settemposleep = strtoul(sleeptime.c_str(),NULL, 1000);
 
-FastLED.setBrightness(dimmervar);
-FastLED.delay(2000 / velovar);
+    FastLED.setBrightness(dimmervar);
+    FastLED.delay(2000 / velovar);
 
     scrollTimer.setInterval(velovar);//reseta a velocidade
     effectTimer.setInterval(velovar);
@@ -1228,22 +1187,14 @@ FastLED.delay(2000 / velovar);
     
 
     
-             request->send(SPIFFS, "/index.html", "text/html", false, processor); 
+    request->send(SPIFFS, "/index.html", "text/html", false, processor); 
       });
 
 
-server.on("/lersd", HTTP_GET, listFilesOnWebPage);
-server.on("/lersdx/*", HTTP_GET, handleFile);
+    server.on("/lersd", HTTP_GET, listFilesOnWebPage);
+    server.on("/lersdx/*", HTTP_GET, handleFile);
+    server.on("/apagarsd", HTTP_GET, apagarsd);
  
-      // Route to set GPIO state to HIGH
-    server.on("/apagarsd", HTTP_GET, [](AsyncWebServerRequest *request) {
-    apagarsd();
-    request->send(200, "text/html", "Arquivos apagados<br><br><a href='./'>VOLTAR</a>");
- 
-    });
-
-       
-    // Route to set GPIO state to HIGH
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
    logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\",\"Hora\":\"22:00\"}";
   
@@ -1255,7 +1206,6 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
    logger = String();
   });
 
-  // Route to set GPIO state to HIGH
     server.on("/climalog", HTTP_GET, [](AsyncWebServerRequest *request) {
     logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\",\"Hora\":\"22:00\"}";
      logger += readFileSD(SD_MMC, climaPath); 
@@ -1265,8 +1215,6 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
    logger = String();
   });
 
-    
-      // Route to set GPIO state to HIGH
     server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
      verifica2();
      verifica();
@@ -1284,9 +1232,6 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
     json = String();
   });
 
-    
-
-        // Route to set GPIO state to HIGH
     server.on("/deletelog", HTTP_GET, [](AsyncWebServerRequest *request) {
      // ledState = "deletelog";
       writeFileSD(SD_MMC, climaPath, "");
@@ -1296,7 +1241,6 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
 
-            // Route to set GPIO state to HIGH
     server.on("/apagaconfig", HTTP_GET, [](AsyncWebServerRequest *request) {
      // ledState = "deletelog";
       writeFile(SPIFFS, ssidPath, "");
@@ -1313,24 +1257,21 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
     
-
-    // Route to set GPIO state to HIGH
     server.on("/co2", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "co2";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     }); 
     
-    // Route to set GPIO state to HIGH
     server.on("/humi", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "humi";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });  
-    // Route to set GPIO state to HIGH
+
     server.on("/temp", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "temp";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });  
-        // Route to set GPIO state to HIGH
+
     server.on("/pressao", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "pressao";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
@@ -1362,40 +1303,33 @@ server.on("/lersdx/*", HTTP_GET, handleFile);
 
       request->send(SPIFFS, "/index.html", "text/html", false);
     });
-                       // Route to set GPIO state to HIGH
+
     server.on("/spiralone", HTTP_GET, [](AsyncWebServerRequest *request) {
-                            FastLED.clear();
-
-            ledState = "spiralone";
+    FastLED.clear();
+    ledState = "spiralone";
 
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
-                           // Route to set GPIO state to HIGH
+
     server.on("/papainoel", HTTP_GET, [](AsyncWebServerRequest *request) {
-                  FastLED.clear();
+    FastLED.clear();
+    ledState = "papainoel";
 
-            ledState = "papainoel";
-
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
-    });
-        server.on("/spiraltwo", HTTP_GET, [](AsyncWebServerRequest *request) {
-      
-
-            ledState = "spiraltwo";
-
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
-    });
-
-                               // Route to set GPIO state to HIGH
-    server.on("/dots", HTTP_GET, [](AsyncWebServerRequest *request) {
-                  FastLED.clear();
-
-            ledState = "dots";
-
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
     
-    // Route to set GPIO state to HIGH
+        server.on("/spiraltwo", HTTP_GET, [](AsyncWebServerRequest *request) {
+    ledState = "spiraltwo";
+    request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+
+    server.on("/dots", HTTP_GET, [](AsyncWebServerRequest *request) {
+    FastLED.clear();
+    ledState = "dots";
+
+    request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    });
+    
     server.on("/green", HTTP_GET, [](AsyncWebServerRequest *request) {
      
       FastLED.clear();
@@ -1806,7 +1740,7 @@ ESP.restart();
       
       
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
-    Serial.println("TASK capture");
+    Serial.println("TASK capture pagina stream");
     takeNewPhoto = true;
     request->send(SPIFFS, "/index.html", "text/html", false, processor);
   });
@@ -1853,23 +1787,15 @@ FastLED.delay(2000 / velovar);
     
     server.serveStatic("/", SPIFFS, "/");
 
-
-
-      
-      server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
+    server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
     takeNewPhoto = true;
-//    request->send_P(200, "text/plain", "Taking Photo");
     request->send(SPIFFS, "/wifimanager.html", "text/html", false, processor);
-  });
+    });
 
-  server.on("/saved-photo", HTTP_GET, [](AsyncWebServerRequest * request) {
+    server.on("/saved-photo", HTTP_GET, [](AsyncWebServerRequest * request) {
     request->send(SPIFFS, FILE_PHOTO, "image/jpg", false);
-  });
+    });
 
-
-
-    
-    
     server.on("/", HTTP_POST, [](AsyncWebServerRequest *request) {
       int params = request->params();
       for(int i=0;i<params;i++){
@@ -1910,11 +1836,7 @@ FastLED.delay(2000 / velovar);
             writeFile(SPIFFS, nomedobotPath, nomedobot.c_str());
           }
 
-          
-          
-          
-          
-          
+
           //Serial.printf("POST[%s]: %s\n", p->name().c_str(), p->value().c_str());
         }
       }
@@ -1944,11 +1866,6 @@ String configg = "Prontinho. MushLight reiniciando, conecte no seu WIFI e clique
 
 
 #if (BLEX == 1)
-
- ble.begin("MushLight");
-   BLESecurity *pSecurity = new BLESecurity();
-  pSecurity->setStaticPIN(123456); 
-  pSecurity->setAuthenticationMode(ESP_LE_AUTH_REQ_SC_BOND);
 
 #endif
 
@@ -1986,25 +1903,18 @@ void loop() {
 
     if (millis() - tempo6 > 15000)//Faz a verificaçao das funçoes a cada 30min
    {
-          Serial.println("EVENTS ping pagina");
-   events.send("ping",NULL,millis());
-   events.send(getSensorReadings().c_str(),"new_readings" ,millis());
- //  Serial.println(getSensorReadings().c_str());
-   
-
-        //   xTaskCreate(sensorread,"Envia sensorread", 10000, NULL, 0, NULL);     
-
-       
+    Serial.println("EVENTS ping pagina");
+    events.send("ping",NULL,millis());
+    events.send(getSensorReadings().c_str(),"new_readings" ,millis());
+    //  Serial.println(getSensorReadings().c_str());
+ 
       tempo6 = millis();
      
    }
 
 
-
-
-
-if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
-   {
+    if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
+    {
 
           Serial.println("verifica2");
 
@@ -2019,17 +1929,11 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
 //1200000
   if (millis() - tempoverifica > 1800000)//Faz a verificaçao das funçoes a cada 30min
-   {   //tira foto e manda clima no telegram
-          Serial.println("verifica1");
-
-        connect();
-      //  readTel();
-        //xTaskCreate(readTel,"READ TEL", 50000, NULL, 0, NULL);     
-    //    xTaskCreate(verifica1,"VERIFICA1", 10000, NULL, 0, NULL);     
-
+   {   
+      Serial.println("verifica1");
+      connect();
       verifica();
-      tempoverifica = millis();
-     
+      tempoverifica = millis();   
    }
 
 
@@ -2037,20 +1941,16 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
      if (millis() - tempoping > 120000)//Faz a verificaçao das funçoes a cada 30min
    {
-          Serial.println("pingando");
-      connect();
-      pingando();
+    Serial.println("pingando");
+    connect();
+    pingando();
 
-      //esp_wifi_stop(); 
-    delay(200);
+    //esp_wifi_stop(); 
+    delay(500);
     WiFi.disconnect();
-    delay(1000);
+    delay(500);
     connect();
 
-    if(blueState == "on"){
-        BLE();
-        ble.println("Hello!");
-}
       tempoping = millis();
      
    }
@@ -2084,75 +1984,15 @@ if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
 
 #endif
 
-#if (BLEX == 1)
 
 //####################################le bluetooth serial
-    if (ble.available() > 0) {
+
+#if (BLEX == 1)
+
+
+
+
     
-    delay(200);
-    
-    String input = ble.readStringUntil('\n');
-    Serial.println(input);
-
-
-if (input.indexOf("ledon") > -1)//Caso o texto recebido contenha "ON"
-      {
-         Serial.println("led ON");
-         ble.println("led ON");
-
-         ledState = "ledon";
-       //  bot.sendMessage(id, "LED ON VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-      }
-if (input.indexOf("ledoff") > -1)//Caso o texto recebido contenha "ON"
-      {
-         Serial.println("led OFF");
-         ledState = "ledoff";
-         bot.sendMessage(id, "LED OFF VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-      }
-
-if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
-      {
-         Serial.println("SORRIA!");
-         //ledon();
-
-    send_the_picture();
-
-           
-        // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-      }
-
-      if (input.indexOf("sd") > -1)//Caso o texto recebido contenha "ON"
-      {
-         Serial.println("SORRIA!");
-         ble.println("SORRIA!!!");
-         //savesd();
-      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
-
-        // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-      }
-  if (input.indexOf("reset") > -1)//Caso o texto recebido contenha "ON"
-      {
-         Serial.println("RESET!");
-         ESP.restart();
-       }
-  if (input.indexOf("flash") > -1)//Caso o texto recebido contenha "ON"
-      {
-
-        if(ledStateCAM == "flash"){
-         Serial.println("FLASHOFF");
-         ledStateCAM = "flashoff";
-        }
-        else{
-           Serial.println("FLASH");
-          ledStateCAM = "flash";}
-        
-       }
-
-       
-      
-    delay(300);
-    }
-    delay(20);
 #endif
 
 //############################## Le porta serial
@@ -2160,9 +2000,7 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
     
       String input = Serial.readStringUntil('\n');
       Serial.println(input); 
- #if (BLEX == 1)        
-      ble.println(input);
-#endif  
+  
       delay(300);
 
       if (input.indexOf("sd") > -1)//Caso o texto recebido contenha "ON"
@@ -2193,15 +2031,50 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
         
        }
 
-  if (input.indexOf("ble") > -1)//Caso o texto recebido contenha "ON"
+        if (input.indexOf("ble") > -1)//Caso o texto recebido contenha "ON"
       {
-         Serial.println("BLUETOOTH!");
-         BLE();
+
+        if(blueState == "bluetoothON"){
+         Serial.println("BLE OFF");
+         blueState = "bluetoothOFF";
+      BLEDevice::deinit();
+
+        }
+        else{
+           Serial.println("bluetoothON");
+          blueState = "bluetoothON";
+          bluetoothvoid();
+          }
+        
        }
 
 
 
   }
+
+
+
+
+
+//#######################TIME LAPSE
+
+
+if (timeLapse == "timeLapseON"){
+
+
+  if (millis() -  tempotimelapse > 60000)//Faz a verificaçao das funçoes a cada 30min
+   {   //tira foto e manda clima no telegram
+          Serial.println("TimeLapse millis");
+
+         xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+
+
+        
+      tempotimelapse = millis();
+     
+   }
+  
+}
 
 
 
@@ -2220,6 +2093,8 @@ if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
     takeNewPhoto = false;
      delay(600);
   }
+
+  
   delay(50);
 
 

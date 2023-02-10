@@ -41,7 +41,7 @@ else{
           Serial.println("Falha do ping da internet, contando...");
           Serial.println(notConnectedCounter);
 
-    if(notConnectedCounter > 1000) { // Reset a placa apos 50 erros    
+    if(notConnectedCounter > 50) { // Reset a placa apos 50 erros    
     Serial.println("Reiniciando esp por falha na internet");
     
           ESP.restart();
@@ -52,16 +52,6 @@ else{
 }
 
 //##############VOID TELEGRAM
-
-
-
-void tele(void* pvParameters){
-readTel();
-            vTaskDelay(5000/ portTICK_RATE_MS);
-
-
-}
-
 
 
 
@@ -127,6 +117,23 @@ readTel();
               
 
          }
+
+    if (text.indexOf("timelapse") > -1)//Caso o texto recebido contenha "ON"
+      {        
+  if(timeLapse == "timeLapseON"){
+         Serial.println("TimeLapse OFF");
+         timeLapse = "timeLapseOFF";
+         bot.sendMessage(id, timeLapse, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+     
+        }
+        else{
+           Serial.println("timeLapseON");
+           timeLapse = "timeLapseON";} 
+           bot.sendMessage(id, timeLapse, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+              
+
+         }
+         
 
       else if (text.indexOf("ledoff") > -1)//Caso o texto recebido contenha "OFF"
       {
@@ -232,10 +239,24 @@ readTel();
         bot.sendMessage(id, "Monitorando grupo do telegram, envie msg com / para aparecer na luminaria", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
 
-         else if (text.indexOf("bluetooth") > -1)//Caso o texto recebido contenha "OFF"
+         else if (text.indexOf("bluetooth") > -1)
       {
-        BLE();
-        bot.sendMessage(id, "Dente azul", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+    
+        if(blueState == "bluetoothON"){
+         Serial.println("BLE OFF");
+         blueState = "bluetoothOFF";
+      BLEDevice::deinit();
+      bot.sendMessage(id, "BLE OFF", "");
+
+
+        }
+        else{
+           Serial.println("bluetoothON");
+          blueState = "bluetoothON";
+          bluetoothvoid();
+          bot.sendMessage(id, "BLE ON", "");
+
+          }
       }
 
       
@@ -486,8 +507,12 @@ Ping.ping("google.com", 1);
     welcome += "\n";
     welcome += "Estado LED: ";
     welcome += ledState;
-
-   
+    welcome += "\n";
+    welcome += "TimeLapse: ";
+    welcome += timeLapse;
+    welcome += "\n";
+    welcome += "Bluetooth: ";
+    welcome += blueState;
     
 
       bot.sendMessage(id, welcome, "Markdown");      
@@ -507,6 +532,7 @@ Ping.ping("google.com", 1);
       welcome += "/caption : Tira uma foto com legenda\n";
       welcome += "/video : Grava um mini video clip\n";
       welcome += "/flash : Liga e desliga o flash\n";
+      welcome += "/timelapse : Liga e desliga o timelapse\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";
       welcome += "/clock : Mostra o relogio na MushlLght \n";
@@ -534,8 +560,8 @@ Ping.ping("google.com", 1);
 
    }
 //delay(200);
-//client.flush();
-//client.stop();
+client.flush();
+client.stop();
 //  vTaskDelete(NULL);
        //   vTaskDelete(teletask);
    // vTaskSuspend(NULL);

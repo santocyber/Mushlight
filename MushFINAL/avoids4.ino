@@ -1,7 +1,7 @@
 //feito pela AI
 
 
-void apagarsd() {
+void apagarsd(AsyncWebServerRequest *request){
      File root = SD_MMC.open("/");
 
     while(File file = root.openNextFile()) {
