@@ -38,8 +38,8 @@
 #define CAMERA 1
 #define SENSORES 1
 #define BLEX 1
-
-
+#define ACCEL 0
+#define PHX 0
 
 
 //#############################################################################Configura GPIO
@@ -70,13 +70,17 @@ Adafruit_BMP280 bmp;
 
 
 
+//######################################### Sensor Acelerometro
+#if (ACCEL == 1)
+#include <MPU6050_tockn.h>
+MPU6050 mpu6050(Wire);
 
+long timer = 0;
 
-
+#endif
 
 //##############################################ATIVA O bluetooth
 
-#include <esp_attr.h>
 
 #if (BLEX == 1)
 
@@ -99,13 +103,16 @@ class MyCallbacks: public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
       std::string input = pCharacteristic->getValue();
 
-     
              if (input.length() > 0) {
 
                for (int i = 0; i < input.length(); i++) {
           Serial.print(input[i]);
-
-}}
+}
+  
+}
+if (input == "ligarled") {
+          Serial.print("LIGADO LED");
+    }
 
 
         Serial.println();
@@ -113,6 +120,8 @@ class MyCallbacks: public BLECharacteristicCallbacks {
       
     }
 };
+
+
 #endif
 
 
@@ -132,9 +141,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 #include "esp_camera.h"
 #endif
 
-#define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
-
-
 
 //################################################################################Task handle 
 #include <stdio.h>
@@ -142,6 +148,29 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include "freertos/queue.h"
+#include <esp_attr.h>
+
+#define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
+
+
+
+TaskHandle_t xHandle = NULL;
+
+
+#define STACK_SIZE 10000
+
+ // Structure that will hold the TCB of the task being created.
+ StaticTask_t xTaskBuffer;
+
+ // Buffer that the task being created will use as its stack.  Note this is
+ // an array of StackType_t variables.  The size of StackType_t is dependent on
+ // the RTOS port.
+// StackType_t *xStack;
+
+ StackType_t xStack[ STACK_SIZE ];
+
+
+
 
 //void toque (void* pvParameters);
 
@@ -158,6 +187,8 @@ AsyncEventSource events("/events");
 const int httpsPort = 443;
 HTTPClient http;
 
+
+
 //####################################################Configura variaveis
 
 int valoratm = 0;//Declara a variável valorldr como inteiro
@@ -168,9 +199,9 @@ int valorvibra;
 
 
 String runningText = "MushLight";
-String timeLapse = "timeLapseOFF";
+String timeLapse;
 String blueState = "bluetoothOFF";
-String ledStateCAM;
+String ledStateCAM = "OFF";
 String ledState;
 boolean led_state = true;
 int clap_counter = 0;
@@ -225,6 +256,7 @@ const char* tokentelegramPath = "/tokentelegram.txt";
 const char* climaPath = "/clima.txt";
 const char* loggerPath = "/data.txt";
 const char* FILE_PHOTO = "/photo.jpg";
+const char* TIMELAPSE = "/timelapse.txt";
 
 
 //##configura o millis
@@ -441,12 +473,12 @@ static const char vernum[] = "MushLightCAM0.1V";
 
 
 #if (CAMERA == 1)
-int max_frames = 400;
+int max_frames = 20;
 framesize_t configframesize = FRAMESIZE_VGA; // FRAMESIZE_ + QVGA|CIF|VGA|SVGA|XGA|SXGA|UXGA
-int frame_interval = 200;          // 0 = record at full speed, 100 = 100 ms delay between frames
-float speed_up_factor = 10;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
+int frame_interval = 500;          // 0 = record at full speed, 100 = 100 ms delay between frames
+float speed_up_factor = 1;          // 1 = play at realtime, 0.5 = slow motion, 10 = speedup 10x
 int framesize = FRAMESIZE_VGA; //FRAMESIZE_HD;
-int quality = 10;
+int quality = 8;
 int qualityconfig = 4;
 
 struct tm timeinfo;
@@ -458,9 +490,9 @@ camera_fb_t * fb = NULL;
 camera_fb_t * vid_fb = NULL;
 
 TaskHandle_t the_camera_loop_task;
-void the_camera_loop(void* pvParameter) ;
 TaskHandle_t savesdtask;
-void savesd(void* pvParameter) ;
+TaskHandle_t savespifftask;
+void the_camera_loop(void* pvParameter) ;
 
 
 
@@ -953,17 +985,22 @@ bool setupCamera()
 //######################## SETUP
 
 void setup() {
+
     Serial.begin(115200);
     Serial.setDebugOutput(true);
     Serial.println();
-
     pinMode(LEDBUILTIN, OUTPUT);
+
+if (nvs_flash_init() != ESP_OK) {
+    printf("nvs_flash_init failed\r\n");
+  }
+
 
 
     SD_MMC.setPins(SD_MMC_CLK, SD_MMC_CMD, SD_MMC_D0);
     if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 5)) {
       Serial.println("Card Mount Failed");
-      return;
+     // return;
     }
     
     uint8_t cardType = SD_MMC.cardType();
@@ -1071,11 +1108,13 @@ if (!setupCamera())
 //  clima = readFile (SPIFFS, climaPath);
 //  logger = readTotal (SPIFFS, loggerPath);
   photo = readFile (SPIFFS, FILE_PHOTO);
+  timeLapse = readFile (SPIFFS, TIMELAPSE);
+
 
   Serial.println(ssid);
   Serial.println(pass);
   Serial.println(tokentelegram);
-  //Serial.println(clima);
+  Serial.println(timeLapse);
  // Serial.println(logger);
 
 
@@ -1865,11 +1904,6 @@ String configg = "Prontinho. MushLight reiniciando, conecte no seu WIFI e clique
 
 
 
-#if (BLEX == 1)
-
-#endif
-
-
 
        fill_solid( ledflash, 1, CRGB::Red);
          FastLED.show();
@@ -1886,6 +1920,33 @@ String configg = "Prontinho. MushLight reiniciando, conecte no seu WIFI e clique
        fill_solid( ledflash, 1, CRGB::Black);
          FastLED.show();
 
+//############################################ Configura LOOP TELEGRAM
+ 
+ //xStack = (uint8_t*)heap_caps_calloc(1, 5000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT | MALLOC_CAP_32BIT);
+//pxStackBuffer = (uint8_t*)heap_caps_calloc(1, 5000, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT | MALLOC_CAP_32BIT);
+  delay(200);
+
+
+     // Create the task pinned to core 0 without using any dynamic memory allocation.
+    //      xHandle = xTaskCreateStatic(
+     xHandle = xTaskCreateStaticPinnedToCore(
+                   TELE,       // Function that implements the task.
+                   "TELE",          // Text name for the task.
+                   STACK_SIZE,      // Stack size in bytes, not words.
+                   ( void * ) 1,    // Parameter passed into the task.   ( void * ) 1
+                   1,// Priority at which the task is created.
+                   xStack,          // Array to use as the task's stack.
+                   &xTaskBuffer,    // Variable to hold the task's data structure.
+                   1 );     
+
+//######################################### Sensor Acelerometro
+
+#if (ACCEL == 1)
+
+
+  mpu6050.begin();
+  mpu6050.calcGyroOffsets(true);
+#endif
 
 }
 
@@ -1939,7 +2000,7 @@ void loop() {
 
 #endif
 
-     if (millis() - tempoping > 120000)//Faz a verificaçao das funçoes a cada 30min
+     if (millis() - tempoping > 240000)//Faz a verificaçao das funçoes a cada 30min
    {
     Serial.println("pingando");
     connect();
@@ -1950,24 +2011,39 @@ void loop() {
     WiFi.disconnect();
     delay(500);
     connect();
-
+    esp_get_free_heap_size();
+    
       tempoping = millis();
      
    }
 
 
 
-  if (millis() - tempotelegram > 20000)//Faz a verificaçao das funçoes a cada 30min
-   {   //tira foto e manda clima no telegram
-          Serial.println("ReadTel millis");
 
-        connect();
-        readTel();
+//#######################TIME LAPSE
 
-        
-      tempotelegram = millis();
-     
+
+  if (millis() - tempotimelapse > 60000)//Faz a verificaçao das funçoes a cada 30min
+   {
+          
+          
+    Serial.println("TimeLapse millis");
+    timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+
+if (timeLapse == "timeLapseON"){
+
+          Serial.println("TimeLapse millis ON");
+
+         xTaskCreate(savesd, "sdtask", 5000, NULL, 0, &savesdtask); 
+         delay(400);
+          
    }
+
+tempotimelapse = millis();
+}
+
+
 
 
 
@@ -2003,11 +2079,11 @@ void loop() {
   
       delay(300);
 
-      if (input.indexOf("sd") > -1)//Caso o texto recebido contenha "ON"
+      if (input.indexOf("foto") > -1)//Caso o texto recebido contenha "ON"
       {
          Serial.println("SORRIA!");
          //savesd();
-      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+      xTaskCreatePinnedToCore(savesd, "sdtask", 10000, NULL, 1, &savesdtask, 1);
 
          
         // bot.sendMessage(id, "FOTO VIA BLUETOOTH", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
@@ -2056,38 +2132,21 @@ void loop() {
 
 
 
-//#######################TIME LAPSE
-
-
-if (timeLapse == "timeLapseON"){
-
-
-  if (millis() -  tempotimelapse > 60000)//Faz a verificaçao das funçoes a cada 30min
-   {   //tira foto e manda clima no telegram
-          Serial.println("TimeLapse millis");
-
-         xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
-
-
-        
-      tempotimelapse = millis();
-     
-   }
-  
-}
-
-
-
-
 //#################################################TIRA FOTO
     if (takeNewPhoto) {
-    delay(200);
 
-     //   xTaskCreate(camera,"TAKEAPICTURE", 40000, NULL, 0, NULL);     
 #if (CAMERA == 1)
 //capturePhotoSaveSpiffs();
-      xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 1);
-      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+  //    delay(200);
+ //   xTaskCreate(foto,"TAKEAPICTURE", 20000, NULL, 1, &savespifftask);     
+    //  delay(200);
+    //xTaskCreate(savesd,"TAKEAPICTURE", 20000, NULL, 0, &savesdtask);  
+    //  delay(200);
+  //capturePhotoSaveSpiffs();
+
+      xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 0);
+      delay(2000);
+  //   xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 0, &savesdtask, 1);
 
 
     takeNewPhoto = false;
@@ -2109,6 +2168,41 @@ if (timeLapse == "timeLapseON"){
     send_the_video();
   }
 
+#endif
+
+
+//######################################### Sensor Acelerometro
+
+#if (ACCEL == 1)
+mpu6050.update();
+
+  if(millis() - timer > 5000){
+    
+    Serial.println("=======================================================");
+    Serial.print("temp : ");Serial.println(mpu6050.getTemp());
+    Serial.print("accX : ");Serial.print(mpu6050.getAccX());
+    Serial.print("\taccY : ");Serial.print(mpu6050.getAccY());
+    Serial.print("\taccZ : ");Serial.println(mpu6050.getAccZ());
+  
+    Serial.print("gyroX : ");Serial.print(mpu6050.getGyroX());
+    Serial.print("\tgyroY : ");Serial.print(mpu6050.getGyroY());
+    Serial.print("\tgyroZ : ");Serial.println(mpu6050.getGyroZ());
+  
+    Serial.print("accAngleX : ");Serial.print(mpu6050.getAccAngleX());
+    Serial.print("\taccAngleY : ");Serial.println(mpu6050.getAccAngleY());
+  
+    Serial.print("gyroAngleX : ");Serial.print(mpu6050.getGyroAngleX());
+    Serial.print("\tgyroAngleY : ");Serial.print(mpu6050.getGyroAngleY());
+    Serial.print("\tgyroAngleZ : ");Serial.println(mpu6050.getGyroAngleZ());
+    
+    Serial.print("angleX : ");Serial.print(mpu6050.getAngleX());
+    Serial.print("\tangleY : ");Serial.print(mpu6050.getAngleY());
+    Serial.print("\tangleZ : ");Serial.println(mpu6050.getAngleZ());
+    Serial.println("=======================================================\n");
+    timer = millis();
+    
+  }
+  
 #endif
 
 

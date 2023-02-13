@@ -13,7 +13,7 @@ void connect()//Funçao para Conectar ao wifi e verificar à conexao.
      delay(400);
     client.setInsecure();
      delay(400);
-    client.setHandshakeTimeout(120000);
+    client.setHandshakeTimeout(1200000);
    // client.setTimeout(3000);
 
     delay(10);
@@ -53,7 +53,22 @@ else{
 
 //##############VOID TELEGRAM
 
+void TELE(void*p){
+//portVALID_STACK_MEM(pxStackBuffer); 
+    
+    configASSERT( ( uint32_t ) p == 1UL );
+    
+  // Block for 500ms.
+const TickType_t xDelay = 10000 / portTICK_PERIOD_MS;
 
+  for( ;; )
+  {
+      // Simply toggle the LED every 500ms, blocking between each toggle.
+  readTel();
+      vTaskDelay( xDelay );
+  }
+
+  }
 
 
   void readTel(){
@@ -120,17 +135,27 @@ else{
 
     if (text.indexOf("timelapse") > -1)//Caso o texto recebido contenha "ON"
       {        
-  if(timeLapse == "timeLapseON"){
-         Serial.println("TimeLapse OFF");
-         timeLapse = "timeLapseOFF";
-         bot.sendMessage(id, timeLapse, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+  timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+
+          if (timeLapse == "timeLapseON"){
+      //   timeLapse = "timeLapseOFF";
+writeFile(SPIFFS, TIMELAPSE, "timeLapseOFF");
+timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+         Serial.println(timeLapse);
+
+
+         bot.sendMessage(id, "timeLapseOFF", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
      
         }
         else{
-           Serial.println("timeLapseON");
-           timeLapse = "timeLapseON";} 
-           bot.sendMessage(id, timeLapse, "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-              
+       writeFile(SPIFFS, TIMELAPSE, "timeLapseON");
+timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+         Serial.println(timeLapse);
+           bot.sendMessage(id, "timeLapseON", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+        } 
 
          }
          
@@ -258,20 +283,6 @@ else{
 
           }
       }
-
-      
-    for (int j = 0; j < 2; j++) {
-    camera_fb_t * newfb = esp_camera_fb_get();
-    if (!newfb) {
-      Serial.println("Camera Capture Failed");
-    } else {
-      //Serial.print("Pic, len="); Serial.print(newfb->len);
-      //Serial.printf(", new fb %X\n", (long)newfb->buf);
-      esp_camera_fb_return(newfb);
-      delay(30);
-    }
-  }
-  
      
 
       if (text.indexOf("/foto") > -1){
@@ -351,16 +362,6 @@ ledStateCAM = "flash";
       }
 
 
-                  else if (text.indexOf("sd") > -1)//Caso o texto recebido contenha "OFF"
-      {
-            takeNewPhoto = true;
-           delay(300);
-
-//        sendfoto();
-        bot.sendMessage(id, "foto sd", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
-      }
-
-
  else if (text.indexOf("vga") > -1)//Caso o texto recebido contenha "OFF"
       {
  fb = NULL;
@@ -403,9 +404,9 @@ ledStateCAM = "flash";
 
       // record the video
       bot.longPoll =  0;
-      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+     // xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 10, &the_camera_loop_task);     
 
-     // xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 1);
+      xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 0);
     //  xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
 
       if ( the_camera_loop == NULL ) {
@@ -423,7 +424,7 @@ ledStateCAM = "flash";
 
       // record the video
       bot.longPoll =  0;
-      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
+      xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 1, NULL);     
 
      // xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 1);
     //  xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
@@ -475,10 +476,10 @@ Ping.ping("google.com", 1);
     welcome += "ms";
     welcome += "\n";
     welcome += "MMC Size:";
-    welcome += SD_MMC.totalBytes();
+    welcome += SD_MMC.totalBytes()/ (1024 * 1024);
     welcome += "\n"; 
     welcome += "MMC Bytes USADO:";
-    welcome += SD_MMC.usedBytes();
+    welcome += SD_MMC.usedBytes()/ (1024 * 1024);
     welcome += "\n";
     welcome += "HEAP Size:";
     welcome += ESP.getHeapSize();  
@@ -507,13 +508,16 @@ Ping.ping("google.com", 1);
     welcome += "\n";
     welcome += "Estado LED: ";
     welcome += ledState;
+     welcome += "\n";
+    welcome += "Estado FLASH: ";
+    welcome +=  ledStateCAM;
     welcome += "\n";
     welcome += "TimeLapse: ";
+timeLapse = readFile(SPIFFS, TIMELAPSE);
     welcome += timeLapse;
     welcome += "\n";
     welcome += "Bluetooth: ";
     welcome += blueState;
-    
 
       bot.sendMessage(id, welcome, "Markdown");      
       }
@@ -560,8 +564,10 @@ Ping.ping("google.com", 1);
 
    }
 //delay(200);
-client.flush();
-client.stop();
+//client.flush();
+//client.stop();
+esp_get_free_heap_size();
+
 //  vTaskDelete(NULL);
        //   vTaskDelete(teletask);
    // vTaskSuspend(NULL);

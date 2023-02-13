@@ -16,7 +16,6 @@ static void setupinterrupts() {
   Serial.println(" ");
  //install gpio isr service
     gpio_install_isr_service(0);
-    // gpio_install_isr_service();
     
   esp_err_t err = gpio_isr_handler_add((gpio_num_t)PIRpin, &PIR_ISR, NULL);
 
@@ -66,6 +65,21 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
 }
 
 
+void BLUETASK( void * pvParameters ){
+
+    configASSERT( ( uint32_t ) pvParameters == 1UL );
+    
+  // Block for 500ms.
+const TickType_t xDelay = 5000 / portTICK_PERIOD_MS;
+
+  for( ;; )
+  {
+      // Simply toggle the LED every 500ms, blocking between each toggle.
+    bluetoothvoid();
+    vTaskDelay( xDelay );
+  }
+
+  }
 
 
 

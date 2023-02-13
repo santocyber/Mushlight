@@ -8,19 +8,50 @@ String lastPhoto = "";
 String cam;
 
 
+/*
+void foto(void* pvParameter){
+  capturePhotoSaveSpiffs();
+    vTaskDelete(NULL);
+}
+*/
+
+void foto(void* pvParameter){
+  capturePhotoSaveSpiffs();
+
+   // vTaskDelete(savespifftask);
+}
+void savesd(void*p){
+
+  savesdX();
+        
+      }
+
+
+
 //take a picture save mmc
-void savesd(void* pvParameter){
+void savesdX(){
 
+  delay(500);
 
-  
     // Take a photo with the camera
-    Serial.println("Taking a photo...");
+    Serial.println("Taking a photo save MMC...");
+
+ for (int j = 0; j < 4; j++) {
+    camera_fb_t * newfb = esp_camera_fb_get();
+    if (!newfb) {
+      Serial.println("Camera Capture Failed");
+    } else {
+      //Serial.print("Pic, len="); Serial.print(newfb->len);
+      //Serial.printf(", new fb %X\n", (long)newfb->buf);
+      esp_camera_fb_return(newfb);
+      delay(30);
+    }
+  }
+
+delay(400);
 
 fb = esp_camera_fb_get();
-esp_camera_fb_return(fb);
-delay(200);
-fb = esp_camera_fb_get();
-delay(200);
+delay(400);
 
     if (!fb) {
       Serial.println("Camera capture failed");
@@ -35,30 +66,34 @@ delay(200);
         
         time_t now = time(nullptr);
 
-
   String path = "/picture";
-         path += time(&now);
+         path += now;
          path += ".jpg";
+         path.trim();
  
   Serial.printf("Picture file name: %s\n", path.c_str());
   
-  File file = SD_MMC.open(path.c_str(), FILE_WRITE);
-  if(!file){
+  File filesd = SD_MMC.open(path, FILE_WRITE);
+  if(!filesd){
     Serial.println("Failed to open file in writing mode");
   } 
   else {
 
-    file.write(fb->buf, fb->len); // payload (image), payload length
-    Serial.printf("Saved file to path: %s\n", path.c_str());
+    filesd.write(fb->buf, fb->len); // payload (image), payload length
+    
+    Serial.printf("Saved file to MMC path: %s\n", path.c_str());
 
   }
-  file.close();
+  filesd.close();
   esp_camera_fb_return(fb); 
 
   Serial.println("Deleting sd task");
-  delay(100);
- // vTaskDelete(the_camera_loop_task);
-    vTaskDelete(NULL);
+      delay(500);
+    
+      vTaskDelete(savesdtask);
+      vTaskDelete(savespifftask);
+
+
   }
 
 
@@ -66,13 +101,6 @@ delay(200);
 
 
 //tAKE A PICTURIII
-
-
-
-void foto(void* pvParameter){
-  capturePhotoSaveSpiffs();
-    vTaskDelete(NULL);
-}
 
 
 
@@ -91,26 +119,40 @@ bool checkPhoto( fs::FS &fs ) {
 void capturePhotoSaveSpiffs( void ) {
 
 
-  Serial.print("Task CAM running on core ");
+  Serial.print("Task CAM SPIFF running on core ");
    Serial.println(xPortGetCoreID());
   
-  
+    delay(400);
+
   camera_fb_t * fb = NULL; // pointer
   bool ok = 0; // Boolean indicating if the picture has been taken correctly
 
   do {
     // Take a photo with the camera
-    Serial.println("Taking a photo...");
+    Serial.println("Taking a photo SPIFFS..");
 
 ledStateCAM = "flash";
        fill_solid( ledflash, 1, CRGB::White);
          FastLED.show();
          
+
+ for (int j = 0; j < 4; j++) {
+    camera_fb_t * newfb = esp_camera_fb_get();
+    if (!newfb) {
+      Serial.println("Camera Capture Failed");
+    } else {
+      //Serial.print("Pic, len="); Serial.print(newfb->len);
+      //Serial.printf(", new fb %X\n", (long)newfb->buf);
+      esp_camera_fb_return(newfb);
+      delay(30);
+    }
+  }
+  delay(400);
+
 fb = esp_camera_fb_get();
-esp_camera_fb_return(fb);
-delay(200);
-fb = esp_camera_fb_get();
-delay(200);
+delay(400);
+
+    fill_solid( ledflash, 1, CRGB::Black);
 
 ledStateCAM = "flashoff";
 
@@ -138,12 +180,23 @@ ledStateCAM = "flashoff";
     }
     // Close the file
     file.close();
-    delay(300);
     esp_camera_fb_return(fb);
+
 
     // check if file has been correctly saved in SPIFFS
     ok = checkPhoto(SPIFFS);
   } while ( !ok );
+
+   Serial.println("Iniciando MMC foto task");
+delay(500);
+
+delay(500);
+   //  xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, NULL, 0);
+     xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 0, &savesdtask, 1);
+
+      vTaskDelete(savespifftask);
+
+
 }
 
 
@@ -346,6 +399,7 @@ camera_fb_t *  get_good_jpeg() {
 
 void the_camera_loop (void* pvParameter) {
 
+ 
     frame_cnt = 0;
 
     ///////////////////////////// start a movie
@@ -411,8 +465,8 @@ void the_camera_loop (void* pvParameter) {
   
   Serial.println("Deleting the camera task");
   delay(100);
- // vTaskDelete(the_camera_loop_task);
-    vTaskDelete(NULL);
+  vTaskDelete(the_camera_loop_task);
+ //   vTaskDelete(NULL);
 
 }
 
