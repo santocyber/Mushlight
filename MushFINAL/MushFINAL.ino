@@ -33,21 +33,24 @@
 
 //#######################################ATIVA FUNCOES
 
-#define USETOUCH 0
+#define USETOUCH 1
 #define GRAVALOG 1
 #define CAMERA 1
 #define SENSORES 1
 #define BLEX 1
 #define ACCEL 0
 #define PHX 0
+#define SENSORVIBRA 0
 
 
 //#############################################################################Configura GPIO
 #define LEDBUILTIN  48 
-#define LED_PIN  42 //2
+#define LED_PIN  47 //2
 #define co2pin   1
-#define vibrapin 15
-#define touchpin 14
+#define touchpin 45
+#define vibrapin 0
+
+
 
 int PIRpin = 19;
 
@@ -200,6 +203,7 @@ int valorvibra;
 
 String runningText = "MushLight";
 String timeLapse;
+String pirState;
 String blueState = "bluetoothOFF";
 String ledStateCAM = "OFF";
 String ledState;
@@ -257,6 +261,7 @@ const char* climaPath = "/clima.txt";
 const char* loggerPath = "/data.txt";
 const char* FILE_PHOTO = "/photo.jpg";
 const char* TIMELAPSE = "/timelapse.txt";
+const char* PIRSAVE = "/pirsave.txt";
 
 
 //##configura o millis
@@ -499,7 +504,7 @@ void the_camera_loop(void* pvParameter) ;
 bool video_ready = false;
 bool picture_ready = false;
 bool active_interupt = false;
-bool pir_enabled = true;
+bool pir_enabled = false;
 bool avi_enabled = true;
 
 int avi_buf_size = 0;
@@ -991,14 +996,14 @@ void setup() {
     Serial.println();
     pinMode(LEDBUILTIN, OUTPUT);
 
-if (nvs_flash_init() != ESP_OK) {
-    printf("nvs_flash_init failed\r\n");
-  }
+//if (nvs_flash_init() != ESP_OK) {
+//    printf("nvs_flash_init failed\r\n");
+//  }
 
 
 
     SD_MMC.setPins(SD_MMC_CLK, SD_MMC_CMD, SD_MMC_D0);
-    if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 5)) {
+    if (!SD_MMC.begin("/sdcard", true, true, SDMMC_FREQ_DEFAULT, 20)) {
       Serial.println("Card Mount Failed");
      // return;
     }
@@ -1109,6 +1114,17 @@ if (!setupCamera())
 //  logger = readTotal (SPIFFS, loggerPath);
   photo = readFile (SPIFFS, FILE_PHOTO);
   timeLapse = readFile (SPIFFS, TIMELAPSE);
+  pirState = readFile (SPIFFS, PIRSAVE);
+
+
+if (pirState == "pirON"){
+pir_enabled = true;
+Serial.println("pirON"); 
+        }
+        else{
+          Serial.println("pirOFF");
+          pir_enabled = false;
+          }
 
 
   Serial.println(ssid);
@@ -1233,6 +1249,12 @@ delay(200);
     server.on("/lersd", HTTP_GET, listFilesOnWebPage);
     server.on("/lersdx/*", HTTP_GET, handleFile);
     server.on("/apagarsd", HTTP_GET, apagarsd);
+    server.on("/flashcam", HTTP_GET, flashcam);
+    server.on("/pir", HTTP_GET, pir);
+    server.on("/timelapse", HTTP_GET, timelapse);
+
+
+    
  
     server.on("/log", HTTP_GET, [](AsyncWebServerRequest *request) {
    logger = "{\"sensores\":[{\"Temperatura\":\"22.00\",\"Umidade\":\"45.00\",\"Pressao\":\"45.00\",\"CO2\":\"198.00\",\"Hora\":\"22:00\"}";

@@ -70,3 +70,60 @@ File root = SD_MMC.open("/sdcard");
       request->send(404, "text/plain", "Arquivo nao encontrado");
     }
 }
+
+
+
+
+//##Feito por mim msm agora
+
+void flashcam(AsyncWebServerRequest *request) {
+ if(ledStateCAM == "flash"){
+         Serial.println("FLASHOFF");
+         ledStateCAM = "flashoff"; 
+        }
+        else{
+           Serial.println("FLASH");
+         
+           ledStateCAM = "flash";
+           }
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    } 
+   
+    
+    
+    
+    void pir(AsyncWebServerRequest *request) {
+      if (pirState == "pirON"){
+writeFile(SPIFFS, PIRSAVE, "pirOFF");
+pirState = readFile(SPIFFS, PIRSAVE);
+Serial.println(pirState);
+        pir_enabled = false;
+        }
+        else{
+          Serial.println("pirON");
+          pirState = "pirON";
+          pir_enabled = true;
+
+          }
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    }
+
+        void timelapse(AsyncWebServerRequest *request) {
+    timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+
+          if (timeLapse == "timeLapseON"){
+      //   timeLapse = "timeLapseOFF";
+writeFile(SPIFFS, TIMELAPSE, "timeLapseOFF");
+timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+         Serial.println(timeLapse);     
+        }
+        else{
+       writeFile(SPIFFS, TIMELAPSE, "timeLapseON");
+timeLapse = readFile(SPIFFS, TIMELAPSE);
+
+         Serial.println(timeLapse);
+        } 
+      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    }

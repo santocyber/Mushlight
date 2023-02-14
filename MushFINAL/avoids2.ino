@@ -283,6 +283,27 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
 
           }
       }
+
+             else if (text.indexOf("pir") > -1)
+      {
+       if (pirState == "pirON"){
+writeFile(SPIFFS, PIRSAVE, "pirOFF");
+pirState = readFile(SPIFFS, PIRSAVE);
+Serial.println(pirState);
+        pir_enabled = false;
+        bot.sendMessage(id, "PIR OFF", "");
+
+
+        }
+        else{
+          Serial.println("pirON");
+          pirState = "pirON";
+          pir_enabled = true;
+          bot.sendMessage(id, "PIR ON", "");
+
+          }
+      }
+
      
 
       if (text.indexOf("/foto") > -1){
@@ -518,6 +539,9 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
     welcome += "\n";
     welcome += "Bluetooth: ";
     welcome += blueState;
+    welcome += "\n";
+    welcome += "PIR: ";
+    welcome += pir_enabled;
 
       bot.sendMessage(id, welcome, "Markdown");      
       }
@@ -536,6 +560,7 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
       welcome += "/caption : Tira uma foto com legenda\n";
       welcome += "/video : Grava um mini video clip\n";
       welcome += "/flash : Liga e desliga o flash\n";
+      welcome += "/pir : Ativa o sensor de presença\n";
       welcome += "/timelapse : Liga e desliga o timelapse\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";

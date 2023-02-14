@@ -65,9 +65,12 @@ delay(400);
   // Path where new picture will be saved in SD Card
         
         time_t now = time(nullptr);
-
+        long unsigned int mil = millis();
+        
   String path = "/picture";
          path += now;
+         path += "-";
+         path += mil;
          path += ".jpg";
          path.trim();
  

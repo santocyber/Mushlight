@@ -1,3 +1,4 @@
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
 // setup some interupts during reboot
@@ -27,11 +28,6 @@ static void setupinterrupts() {
 
 
 
-
-
-
-
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
 //  PIR_ISR - interupt handler for PIR  - starts or extends a video
@@ -44,16 +40,19 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
 
 
     if (!active_interupt && pir_enabled) {
+      
+   Serial.print("Task PIR running on core ");
+   Serial.println(xPortGetCoreID());
       active_interupt = true;
-      digitalWrite(33, HIGH);
       Serial.print("PIR Interupt ... start recording ... ");
 
      // xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
-
       xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
+
+      //xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
       //xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
       xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 1);
-      xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
+  //    xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, &savesdtask, 1);
 
 
       if ( the_camera_loop == NULL ) {
@@ -364,7 +363,7 @@ appendFileSD(SD_MMC, loggerPath, output.c_str());
 
     }
 
-
+#if (SENSORVIBRA == 1)
 
 // Sound sensor code
 void readVibra(){
@@ -470,7 +469,7 @@ delay(1000);
 
 
 
-
+#endif
 
 
 
