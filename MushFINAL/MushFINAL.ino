@@ -19,8 +19,6 @@
 #include "bitmap8.h"
 #include "bitmap9.h"
 #include <FS.h>
-#include <SD_MMC.h>
-#include <SD.h>
 #include <WiFiClientSecure.h>
 #include <time.h>
 #include <HTTPClient.h>
@@ -33,22 +31,47 @@
 
 //#######################################ATIVA FUNCOES
 
+//##Tamanho da Matriz de LED
+#define WIDTH 8
+#define HEIGHT 8
+
+
 #define USETOUCH 1
+#define SENSORVIBRA 0
+
 #define GRAVALOG 1
 #define CAMERA 1
 #define SENSORES 1
 #define BLEX 1
 #define ACCEL 0
 #define PHX 0
-#define SENSORVIBRA 0
+#define SENSORWATER 1
+#define SENSORCO2 0
+#define SDCARD 1
 
 
 //#############################################################################Configura GPIO
+#include <SD_MMC.h>
+#include <SD.h>
+
+
+#define SD_MMC_CMD 38 //Please do not modify it.
+#define SD_MMC_CLK 39 //Please do not modify it. 
+#define SD_MMC_D0  40 //Please do not modify it.
+
+
 #define LEDBUILTIN  48 
 #define LED_PIN  47 //2
-#define co2pin   1
-#define touchpin 45
+#define co2pin   19
+#define touchpin 14
 #define vibrapin 0
+#define pinWATER 3
+
+
+
+
+
+
 
 
 
@@ -58,10 +81,6 @@ int PIRpin = 19;
 #define I2C_SCL 21
 
 
-
-#define SD_MMC_CMD 38 //Please do not modify it.
-#define SD_MMC_CLK 39 //Please do not modify it. 
-#define SD_MMC_D0  40 //Please do not modify it.
 
 
 //TwoWire I2C = TwoWire(1);
@@ -81,6 +100,15 @@ MPU6050 mpu6050(Wire);
 long timer = 0;
 
 #endif
+
+#if (SENSORWATER == 1)
+
+const int dry = 595; // value for dry sensor
+const int wet = 239; // value for wet sensor
+
+#endif
+
+
 
 //##############################################ATIVA O bluetooth
 
@@ -133,7 +161,7 @@ if (input == "ligarled") {
 #include <esp_task_wdt.h>
 
 
-#if (CAMERA ==1)
+#if (CAMERA == 1)
 
 #include "soc/rtc_cntl_reg.h"  // Disable brownour problems
 #include "soc/soc.h"           // Disable brownour problems
@@ -150,7 +178,6 @@ if (input == "ligarled") {
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
-#include "freertos/queue.h"
 #include <esp_attr.h>
 
 #define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
@@ -178,6 +205,21 @@ TaskHandle_t xHandle = NULL;
 //void toque (void* pvParameters);
 
 static void IRAM_ATTR PIR_ISR(void* arg) ;
+
+
+
+
+struct SpiRamAllocator {
+        void* allocate(size_t size) {
+                return ps_malloc(size);
+
+        }
+        void deallocate(void* pointer) {
+                free(pointer);
+        }
+};
+
+using SpiRamJsonDocument = BasicJsonDocument<SpiRamAllocator>;
 
 
 //############################################ Create AsyncWebServer object on port 80
@@ -280,6 +322,9 @@ unsigned long tempo10 = millis();
 unsigned long tempoping = millis();
 unsigned long tempotelegram = millis();
 unsigned long tempotimelapse = millis();
+unsigned long tempoumidade = millis();
+
+
 
 //######Config sleep
 unsigned long temposleep0;
@@ -322,8 +367,6 @@ uint32_t autoplayTimer;
 //############################http://fastled.io/docs/3.1/struct_c_r_g_b.html
 //############################CONFIGURA MATRIZ DE LED
 
-#define WIDTH 16
-#define HEIGHT 16
 #define SEGMENTS 1
 
 #define COLOR_ORDER GRB
@@ -825,15 +868,6 @@ bool initWiFi() {
 #if (SENSORES == 1)
 
 
- String readCO2() {
-
-  float c = analogRead(co2pin);
-
-    return String(c);
-
-}
-
-
 
 String readDHTTemperature() {
   sensors_event_t humidity, temp;
@@ -872,10 +906,27 @@ String readDHTPressao() {
       return String(p);
 }
 #endif
-#if (SENSORES == 0)
+
+#if (SENSORCO2 == 1)
+
+ String readCO2() {
+
+  float c = analogRead(co2pin);
+
+    return String(c);
+
+}
+#endif
+#if (SENSORCO2 == 0)
  String readCO2() {
   return "desativado";
 }
+#endif
+
+
+
+
+#if (SENSORES == 0)
 String readDHTTemperature() {
   return "desativado";
 }
@@ -999,6 +1050,7 @@ void setup() {
 //if (nvs_flash_init() != ESP_OK) {
 //    printf("nvs_flash_init failed\r\n");
 //  }
+#if (SDCARD == 1)
 
 
 
@@ -1031,6 +1083,9 @@ void setup() {
     Serial.printf("Total space: %lluMB\r\n", SD_MMC.totalBytes() / (1024 * 1024));
     Serial.printf("Used space: %lluMB\r\n", SD_MMC.usedBytes() / (1024 * 1024));
 
+#endif
+
+#if (CAMERA == 1)
 
   int avail_psram = ESP.getFreePsram();
   Serial.print("PSRAM size to store the video "); Serial.println(avail_psram);
@@ -1044,12 +1099,16 @@ void setup() {
   psram_idx_buf = (uint8_t*)ps_malloc(idx_buf_size); // save file in psram
   if (psram_idx_buf == 0) Serial.printf("psram_idx allocation failed\n");
 
+
+
+setupinterrupts();
+
+#endif
   //desahabilita o watchdog configurando o timeout para 30 segundos
 
   esp_task_wdt_init(30, true);
 
 //inicia PIR
-setupinterrupts();
 
 
   //Disable watchdog timers
@@ -1119,12 +1178,16 @@ if (!setupCamera())
 
 if (pirState == "pirON"){
 pir_enabled = true;
-Serial.println("pirON"); 
-        }
-        else{
-          Serial.println("pirOFF");
-          pir_enabled = false;
-          }
+Serial.println("pirON"); }
+else{Serial.println("pirOFF");
+pir_enabled = false;}
+
+if (timeLapse == "timeLapseON"){
+pir_enabled = true;
+Serial.println("timelapseON"); }
+else{Serial.println("timelapseOFF");
+pir_enabled = false;}
+
 
 
   Serial.println(ssid);
@@ -1700,7 +1763,6 @@ delay(200);
     // Route to set GPIO state to HIGH
         server.on("/runningtext", HTTP_GET, [](AsyncWebServerRequest *request) {
  fillString("MushLight", 1);
- void reset();
           ledState = "runningtext";
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
@@ -1798,12 +1860,19 @@ ESP.restart();
 //    request->send_P(200, "text/plain", "Taking Photo");
    // request->send(SPIFFS, "/", "text/html", false, processor);
   });
+
+  server.on("/indexx", HTTP_GET, [](AsyncWebServerRequest * request) {
+ request->send(SPIFFS, "/index.html", "text/html", false);
+  }); 
+ server.on("/index", HTTP_GET, [](AsyncWebServerRequest * request) {
+ request->send(SPIFFS, "/index.html", "text/html", false, processor);
+  });
       
       
       server.on("/capture", HTTP_GET, [](AsyncWebServerRequest * request) {
     Serial.println("TASK capture pagina stream");
     takeNewPhoto = true;
-    request->send(SPIFFS, "/index.html", "text/html", false, processor);
+    request->send(SPIFFS, "/index.html", "text/html", false);
   });
 
   server.on("/saved-photo", HTTP_GET, [](AsyncWebServerRequest * request) {
@@ -2050,8 +2119,6 @@ void loop() {
           
           
     Serial.println("TimeLapse millis");
-    timeLapse = readFile(SPIFFS, TIMELAPSE);
-
 
 if (timeLapse == "timeLapseON"){
 
@@ -2067,6 +2134,61 @@ tempotimelapse = millis();
 
 
 
+#if (SENSORWATER == 1)
+//#######################SENSOR UMIDADE
+
+
+  if (millis() - tempoumidade > 2000)//Faz a verificaçao das funçoes a cada 30min
+   {
+
+   int sensorVal = analogRead(pinWATER);
+ 
+   int percentageHumididy = map(sensorVal, wet, dry, 100, 0); 
+ int media = percentageHumididy/10 *-1;
+
+
+  Serial.print(percentageHumididy);
+   Serial.println("%");
+   Serial.print(media);
+   Serial.println("%");
+
+if (media > 55)
+
+  {   Serial.println("Molhado");
+           fill_solid( leds, NUM_LEDS, CRGB::Green);
+
+         FastLED.show();
+         delay(5000);
+
+  }
+
+
+
+if (media < 10)
+{   Serial.println("Seco");
+           fill_solid( leds, NUM_LEDS, CRGB::Red);
+
+         FastLED.show();
+         delay(5000);
+
+  }
+tempoumidade = millis();
+}
+#endif
+
+
+#if (SENSORVIBRA == 1)
+
+
+ if (digitalRead(vibrapin) == 0){ //SE A LEITURA DO PINO FOR IGUAL A HIGH, FAZ
+ readVibra();
+   Serial.println("Vibrando...");
+
+
+  delay(1000);
+ }
+
+#endif
 
 
 #if (USETOUCH ==1)
@@ -2153,11 +2275,11 @@ tempotimelapse = millis();
 
 
 
+#if (CAMERA == 1)
 
 //#################################################TIRA FOTO
     if (takeNewPhoto) {
 
-#if (CAMERA == 1)
 //capturePhotoSaveSpiffs();
   //    delay(200);
  //   xTaskCreate(foto,"TAKEAPICTURE", 20000, NULL, 1, &savespifftask);     

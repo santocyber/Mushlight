@@ -675,10 +675,21 @@ String doge(){
 
 const String url = "https://api.bitfinex.com/v1/pubticker/doge:usd";
 
+
+  //Create Json Document
+
+
+
+  
+  //Put data here
+  //Serialize it
+  //char * buffer = (char *) ps_malloc (20000 * sizeof (char));
+  //size_t n = serializeJson(doc,buffer,20000);
+
     
         http.begin(url);
         int httpCode = http.GET();                                                                                                                                                                                                                                                //Get crypto price from API
-        StaticJsonDocument<2000> doc;
+        SpiRamJsonDocument doc (200);
         DeserializationError error = deserializeJson(doc, http.getString());
     
         if (error)                                                                                                                                                                                                                                                                                                                //Display error message if unsuccessful

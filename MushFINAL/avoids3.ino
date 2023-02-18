@@ -272,7 +272,7 @@ oceanNoise();
     }
         if (ledState == "btc") {
 
-  if (millis() - tempo5 > 20000)//Faz a verificaçao das funçoes a cada 30min
+  if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(1, btc());
       tempo5 = millis();
@@ -283,7 +283,7 @@ oceanNoise();
 
     }
             if (ledState == "eth") {
-    if (millis() - tempo5 > 20000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(2, eth());
       tempo5 = millis();
@@ -296,7 +296,7 @@ oceanNoise();
 
   if (ledState == "ltc") {
            
-  if (millis() - tempo5 > 20000)//Faz a verificaçao das funçoes a cada 30min
+  if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(3, ltc());
       tempo5 = millis();
@@ -306,7 +306,7 @@ oceanNoise();
     FastLED.show(); // display this frame
 }
              if (ledState == "shiba") {
-    if (millis() - tempo5 > 20000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(4, shiba());
       tempo5 = millis();
@@ -317,7 +317,7 @@ oceanNoise();
     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     } 
                 if (ledState == "xmr") {
-    if (millis() - tempo5 > 20000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(5, xmr());
       tempo5 = millis();
@@ -328,7 +328,7 @@ oceanNoise();
     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     } 
                 if (ledState == "doge") {
-    if (millis() - tempo5 > 20000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(6, doge());
       tempo5 = millis();
@@ -339,7 +339,7 @@ oceanNoise();
     FastLED.delay(2000 / strtoul(velocidade.c_str(), NULL, 16));
     } 
                 if (ledState == "dolar") {
-    if (millis() - tempo5 > 10000)//Faz a verificaçao das funçoes a cada 30min
+    if (millis() - tempo5 > 60000)//Faz a verificaçao das funçoes a cada 30min
    {
       EEPROM.writeString(7, dolar());
       tempo5 = millis();

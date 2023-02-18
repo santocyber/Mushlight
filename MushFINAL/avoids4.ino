@@ -1,6 +1,7 @@
 //feito pela AI
 
 
+
 void apagarsd(AsyncWebServerRequest *request){
      File root = SD_MMC.open("/");
 
@@ -86,7 +87,7 @@ void flashcam(AsyncWebServerRequest *request) {
          
            ledStateCAM = "flash";
            }
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      request->send(SPIFFS, "/index.html", "text/html", false);
     } 
    
     
@@ -105,7 +106,7 @@ Serial.println(pirState);
           pir_enabled = true;
 
           }
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      request->send(SPIFFS, "/index.html", "text/html", false);
     }
 
         void timelapse(AsyncWebServerRequest *request) {
@@ -125,5 +126,9 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
 
          Serial.println(timeLapse);
         } 
-      request->send(SPIFFS, "/index.html", "text/html", false, processor);
+      request->send(SPIFFS, "/index.html", "text/html", false);
     }
+
+
+
+    
