@@ -109,10 +109,10 @@ const TickType_t xDelay = 10000 / portTICK_PERIOD_MS;
     bot.sendMessage(id, hi, "Markdown");
 
 
-  
+   
       
 
-       else if (text.indexOf("status") > -1)//Caso o texto recebido contenha "OFF"
+       if (text.indexOf("status") > -1)//Caso o texto recebido contenha "OFF"
       {
     welcome = "Nome do bot:\n";
     welcome +=  nomedobot.c_str();

@@ -1,5 +1,5 @@
 
-#include <StringArray.h>
+//#include <StringArray.h>
 #include <ESPAsyncWebServer.h>
 #include <SPIFFS.h>
 #include <WiFiClientSecure.h>
@@ -24,6 +24,22 @@
 #include <esp_attr.h>
 
 
+TaskHandle_t xHandle = NULL;
+
+
+#define STACK_SIZE 10000
+
+ // Structure that will hold the TCB of the task being created.
+ StaticTask_t xTaskBuffer;
+
+ // Buffer that the task being created will use as its stack.  Note this is
+ // an array of StackType_t variables.  The size of StackType_t is dependent on
+ // the RTOS port.
+// StackType_t *xStack;
+
+ StackType_t xStack[ STACK_SIZE ];
+
+
 //############################################ Create AsyncWebServer object on port 80
 AsyncWebServer server(80);
 
@@ -34,7 +50,7 @@ String pass;
 String nomedobot;
 String tokentelegram;
 
-String id, welcome, from_name;//Váriaveis para armazenamento do ID e TEXTO gerado pelo Usuario
+String id, welcome, from_name, text;//Váriaveis para armazenamento do ID e TEXTO gerado pelo Usuario
 
 
 uint32_t notConnectedCounter = 0;
