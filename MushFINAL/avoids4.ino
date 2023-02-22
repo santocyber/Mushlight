@@ -101,6 +101,7 @@ Serial.println(pirState);
         pir_enabled = false;
         }
         else{
+          writeFile(SPIFFS, PIRSAVE, "pirON");
           Serial.println("pirON");
           pirState = "pirON";
           pir_enabled = true;

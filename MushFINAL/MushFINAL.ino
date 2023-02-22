@@ -32,9 +32,10 @@
 //#######################################ATIVA FUNCOES
 
 //##Tamanho da Matriz de LED
-#define WIDTH 8
-#define HEIGHT 8
+#define WIDTH 16
+#define HEIGHT 16
 
+#define USEPIR 1
 
 #define USETOUCH 1
 #define SENSORVIBRA 0
@@ -45,7 +46,7 @@
 #define BLEX 1
 #define ACCEL 0
 #define PHX 0
-#define SENSORWATER 1
+#define SENSORWATER 0
 #define SENSORCO2 0
 #define SDCARD 1
 
@@ -179,6 +180,7 @@ if (input == "ligarled") {
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <esp_attr.h>
+#include "esp_heap_caps.h"
 
 #define MBEDTLS_ERR_NET_RECV_FAILED                       -0x004C 
 
@@ -242,7 +244,7 @@ int valorhumi = 0;//Declara a variável valorldr como inteiro
 int valorvibra;
 
 
-
+String eventState;
 String runningText = "MushLight";
 String timeLapse;
 String pirState;
@@ -278,6 +280,8 @@ String dimmervar;
 
 uint32_t notConnectedCounter = 0;
 uint32_t ConnectedCounter = 0;
+uint32_t PIRcount = 0;
+
 
 // Search for parameter in HTTP POST request
 const char* PARAM_INPUT_1 = "ssid";
@@ -538,6 +542,7 @@ camera_fb_t * fb = NULL;
 camera_fb_t * vid_fb = NULL;
 
 TaskHandle_t the_camera_loop_task;
+TaskHandle_t fototgtask;
 TaskHandle_t savesdtask;
 TaskHandle_t savespifftask;
 void the_camera_loop(void* pvParameter) ;
@@ -548,7 +553,7 @@ bool video_ready = false;
 bool picture_ready = false;
 bool active_interupt = false;
 bool pir_enabled = false;
-bool avi_enabled = true;
+bool avi_enabled = false;
 
 int avi_buf_size = 0;
 int idx_buf_size = 0;
@@ -1101,16 +1106,20 @@ void setup() {
 
 
 
-setupinterrupts();
 
 #endif
+
+
+
+
+
+
   //desahabilita o watchdog configurando o timeout para 30 segundos
 
   esp_task_wdt_init(30, true);
 
-//inicia PIR
 
-
+//  heap_caps_malloc_extmem_enable(0);
   //Disable watchdog timers
   disableCore0WDT();
  // disableCore1WDT();
@@ -1175,18 +1184,19 @@ if (!setupCamera())
   timeLapse = readFile (SPIFFS, TIMELAPSE);
   pirState = readFile (SPIFFS, PIRSAVE);
 
+#if (USEPIR ==1)
 
 if (pirState == "pirON"){
 pir_enabled = true;
+setupinterrupts();
+
 Serial.println("pirON"); }
 else{Serial.println("pirOFF");
-pir_enabled = false;}
+pir_enabled = false;
+}
 
-if (timeLapse == "timeLapseON"){
-pir_enabled = true;
-Serial.println("timelapseON"); }
-else{Serial.println("timelapseOFF");
-pir_enabled = false;}
+#endif
+
 
 
 
@@ -1342,6 +1352,7 @@ delay(200);
     server.on("/loggrafico", HTTP_GET, [](AsyncWebServerRequest *request) {
      verifica2();
      verifica();
+     eventState = "eventON";
  
         request->send(SPIFFS, "/log.html", "text/html", false);
  
@@ -2051,7 +2062,7 @@ void loop() {
 
 
 #if (GRAVALOG == 1)
-    
+    if (eventState == "eventON"){
 
     if (millis() - tempo6 > 15000)//Faz a verificaçao das funçoes a cada 30min
    {
@@ -2059,10 +2070,11 @@ void loop() {
     events.send("ping",NULL,millis());
     events.send(getSensorReadings().c_str(),"new_readings" ,millis());
     //  Serial.println(getSensorReadings().c_str());
- 
+      //eventState = "eventOFF";
       tempo6 = millis();
      
    }
+    }
 
 
     if (millis() - tempo8 > 3600000)//Faz a verificaçao das funçoes a cada 60min
@@ -2112,6 +2124,7 @@ void loop() {
 
 
 //#######################TIME LAPSE
+if (timeLapse == "timeLapseON"){
 
 
   if (millis() - tempotimelapse > 60000)//Faz a verificaçao das funçoes a cada 30min
@@ -2120,7 +2133,6 @@ void loop() {
           
     Serial.println("TimeLapse millis");
 
-if (timeLapse == "timeLapseON"){
 
           Serial.println("TimeLapse millis ON");
 
@@ -2189,6 +2201,41 @@ tempoumidade = millis();
  }
 
 #endif
+
+
+
+#if (USEPIR ==3)
+
+
+ if (digitalRead(PIRpin) == HIGH){ //SE A LEITURA DO PINO FOR IGUAL A HIGH, FAZ
+ int PIRstatus = digitalRead(PIRpin) + digitalRead(PIRpin) + digitalRead(PIRpin) ;
+  if (PIRstatus == 3) {
+    Serial.print("PIR Interupt>> "); 
+    Serial.println(PIRstatus);
+    PIRcount++;
+     Serial.println(PIRcount);
+
+ if (PIRcount > 150){
+     active_interupt = false;
+
+     if (!active_interupt && pir_enabled) {
+      
+   Serial.print("Task PIR running on core ");
+   Serial.println(xPortGetCoreID());
+   Serial.print("PIR Interupt ... start recording ... ");
+   PIRcount = 0;
+   active_interupt = true;
+   takeNewPhoto = true;
+
+
+         //   xTaskCreatePinnedToCore(fototg, "fototask", 20000, NULL, 1, NULL, 1);
+
+  delay(1000);
+ }}}}
+
+#endif
+
+
 
 
 #if (USETOUCH ==1)
@@ -2288,7 +2335,7 @@ tempoumidade = millis();
     //  delay(200);
   //capturePhotoSaveSpiffs();
 
-      xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 0);
+      xTaskCreatePinnedToCore(foto, "fototask", 20000, NULL, 1, NULL, 1);
       delay(2000);
   //   xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 0, &savesdtask, 1);
 

@@ -1,4 +1,6 @@
 
+
+#if (USEPIR ==1)
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //
 // setup some interupts during reboot
@@ -14,6 +16,8 @@ static void setupinterrupts() {
   for (int i = 0; i < 5; i++) {
     Serial.print( digitalRead(PIRpin) ); Serial.print(", ");
   }
+ 
+  
   Serial.println(" ");
  //install gpio isr service
     gpio_install_isr_service(0);
@@ -37,6 +41,7 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
   int PIRstatus = digitalRead(PIRpin) + digitalRead(PIRpin) + digitalRead(PIRpin) ;
   if (PIRstatus == 3) {
     Serial.print("PIR Interupt>> "); Serial.println(PIRstatus);
+      active_interupt = false;
 
 
     if (!active_interupt && pir_enabled) {
@@ -47,7 +52,7 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
       Serial.print("PIR Interupt ... start recording ... ");
 
      // xTaskCreate(the_camera_loop,"FOTO", 20000, NULL, 0, NULL);     
-      xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
+   //   xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
 
       //xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 20000, NULL, 1, &the_camera_loop_task, 1);
       //xTaskCreatePinnedToCore( the_camera_loop, "the_camera_loop", 10000, NULL, 1, &the_camera_loop_task, 0);  //v8.5
@@ -63,6 +68,8 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
   }
 }
 
+
+#endif
 
 void BLUETASK( void * pvParameters ){
 

@@ -133,6 +133,25 @@ const TickType_t xDelay = 10000 / portTICK_PERIOD_MS;
 
          }
 
+if (text.indexOf("avi") > -1)//Caso o texto recebido contenha "ON"
+      {        
+  if(avi_enabled){
+         Serial.println("AVI OFF");
+         avi_enabled = false;
+         bot.sendMessage(id, "AVI OFF", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+     
+        }
+        else{
+           Serial.println("AVI ON");
+           avi_enabled = true;
+           } 
+           bot.sendMessage(id, "AVI ON", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
+              
+
+         }
+
+         
+
     if (text.indexOf("timelapse") > -1)//Caso o texto recebido contenha "ON"
       {        
   timeLapse = readFile(SPIFFS, TIMELAPSE);
@@ -288,14 +307,14 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
       {
        if (pirState == "pirON"){
 writeFile(SPIFFS, PIRSAVE, "pirOFF");
-pirState = readFile(SPIFFS, PIRSAVE);
-Serial.println(pirState);
+Serial.println("PIR OFF");
         pir_enabled = false;
         bot.sendMessage(id, "PIR OFF", "");
 
 
         }
         else{
+          writeFile(SPIFFS, PIRSAVE, "pirON");
           Serial.println("pirON");
           pirState = "pirON";
           pir_enabled = true;
@@ -529,19 +548,19 @@ Ping.ping("google.com", 1);
     welcome += "\n";
     welcome += "Estado LED: ";
     welcome += ledState;
-     welcome += "\n";
+    welcome += "\n";
     welcome += "Estado FLASH: ";
     welcome +=  ledStateCAM;
     welcome += "\n";
     welcome += "TimeLapse: ";
-timeLapse = readFile(SPIFFS, TIMELAPSE);
     welcome += timeLapse;
     welcome += "\n";
     welcome += "Bluetooth: ";
     welcome += blueState;
     welcome += "\n";
     welcome += "PIR: ";
-    welcome += pir_enabled;
+    welcome += pirState;
+
 
       bot.sendMessage(id, welcome, "Markdown");      
       }
@@ -561,6 +580,7 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
       welcome += "/video : Grava um mini video clip\n";
       welcome += "/flash : Liga e desliga o flash\n";
       welcome += "/pir : Ativa o sensor de presença\n";
+ //     welcome += "/avi : Ativa o clip\n";
       welcome += "/timelapse : Liga e desliga o timelapse\n";
       welcome += "/btc : Mostra o preco do btc \n";
       welcome += "/ltc : Mostra o preco do ltc \n";

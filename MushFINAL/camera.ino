@@ -26,6 +26,43 @@ void savesd(void*p){
         
       }
 
+void fototg(void*p){
+
+  fototgX();
+        
+      }
+void fototgX(){
+
+for (int j = 0; j < 4; j++) {
+    camera_fb_t * newfb = esp_camera_fb_get();
+    if (!newfb) {
+      Serial.println("Camera Capture Failed");
+    } else {
+      //Serial.print("Pic, len="); Serial.print(newfb->len);
+      //Serial.printf(", new fb %X\n", (long)newfb->buf);
+      esp_camera_fb_return(newfb);
+      delay(30);
+    }
+  }
+
+  delay(400);
+
+fb = esp_camera_fb_get();
+delay(400);
+  currentByte = 0;
+  fb_length = fb->len;
+  fb_buffer = fb->buf;
+
+  Serial.println("\n>>>>> Sending foto as 512 byte blocks, with jzdelay of 0, bytes=  " + String(fb_length));
+
+    String sent = bot.sendMultipartFormDataToTelegramWithCaption("sendPhoto", "photo", "img.jpg",
+                  "image/jpeg", "PIR Event: " + nomedobot, id, fb_length,
+                  isMoreDataAvailable, getNextByte, nullptr, nullptr);
+
+vTaskDelete(fototgtask); 
+vTaskDelete(savesdtask);
+vTaskDelete(savespifftask);
+  }
 
 
 //take a picture save mmc
@@ -92,11 +129,12 @@ delay(400);
 
   Serial.println("Deleting sd task");
       delay(500);
-    
-      vTaskDelete(savesdtask);
-      vTaskDelete(savespifftask);
 
-
+    if (digitalRead(PIRpin)) {
+         xTaskCreatePinnedToCore(fototg, "fototgtask", 10000, NULL, 0, &fototgtask, 1);
+    }
+vTaskDelete(savesdtask);
+vTaskDelete(savespifftask);
   }
 
 
@@ -195,7 +233,7 @@ delay(500);
 
 delay(500);
    //  xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 1, NULL, 0);
-     xTaskCreatePinnedToCore(savesd, "sdtask", 20000, NULL, 0, &savesdtask, 1);
+     xTaskCreatePinnedToCore(savesd, "sdtask", 10000, NULL, 0, &savesdtask, 1);
 
       vTaskDelete(savespifftask);
 
