@@ -32,13 +32,13 @@
 //#######################################ATIVA FUNCOES
 
 //##Tamanho da Matriz de LED
-#define WIDTH 16
-#define HEIGHT 16
+#define WIDTH 8
+#define HEIGHT 8
 
-#define USEPIR 1
+#define USEPIR 0
 
-#define USETOUCH 1
-#define SENSORVIBRA 0
+#define USETOUCH 0
+#define SENSORVIBRA 1
 
 #define GRAVALOG 1
 #define CAMERA 1
@@ -47,7 +47,7 @@
 #define ACCEL 0
 #define PHX 0
 #define SENSORWATER 0
-#define SENSORCO2 0
+#define SENSORCO2 1
 #define SDCARD 1
 
 
