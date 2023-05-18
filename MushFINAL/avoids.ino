@@ -71,6 +71,8 @@ static void IRAM_ATTR PIR_ISR(void* arg) {
 
 #endif
 
+#if (BLEX == 1)
+
 void BLUETASK( void * pvParameters ){
 
     configASSERT( ( uint32_t ) pvParameters == 1UL );
@@ -86,6 +88,8 @@ const TickType_t xDelay = 5000 / portTICK_PERIOD_MS;
   }
 
   }
+
+
 
 
 
@@ -141,7 +145,7 @@ void bluetoothvoid(){
   }
 
 
-
+#endif
 
 void verifica1(void * parameter){
    verifica();

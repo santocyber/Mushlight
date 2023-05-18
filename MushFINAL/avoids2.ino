@@ -283,6 +283,10 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
         bot.sendMessage(id, "Monitorando grupo do telegram, envie msg com / para aparecer na luminaria", "");//Envia uma Mensagem para a pessoa que enviou o Comando.
       }
 
+     
+         
+#if (BLEX == 1)
+
          else if (text.indexOf("bluetooth") > -1)
       {
     
@@ -302,6 +306,8 @@ timeLapse = readFile(SPIFFS, TIMELAPSE);
 
           }
       }
+
+      #endif
 
              else if (text.indexOf("pir") > -1)
       {

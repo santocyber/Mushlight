@@ -32,22 +32,22 @@
 //#######################################ATIVA FUNCOES
 
 //##Tamanho da Matriz de LED
-#define WIDTH 8
-#define HEIGHT 8
+#define WIDTH 16
+#define HEIGHT 16
 
 #define USEPIR 0
 
 #define USETOUCH 0
-#define SENSORVIBRA 1
+#define SENSORVIBRA 0
 
 #define GRAVALOG 1
 #define CAMERA 1
 #define SENSORES 1
-#define BLEX 1
+#define BLEX 0
 #define ACCEL 0
 #define PHX 0
 #define SENSORWATER 0
-#define SENSORCO2 1
+#define SENSORCO2 0
 #define SDCARD 1
 
 
@@ -248,6 +248,7 @@ String eventState;
 String runningText = "MushLight";
 String timeLapse;
 String pirState;
+String ledsaveState;
 String blueState = "bluetoothOFF";
 String ledStateCAM = "OFF";
 String ledState;
@@ -308,6 +309,7 @@ const char* loggerPath = "/data.txt";
 const char* FILE_PHOTO = "/photo.jpg";
 const char* TIMELAPSE = "/timelapse.txt";
 const char* PIRSAVE = "/pirsave.txt";
+const char* LEDSAVE = "/ledsave.txt";
 
 
 //##configura o millis
@@ -1183,6 +1185,12 @@ if (!setupCamera())
   photo = readFile (SPIFFS, FILE_PHOTO);
   timeLapse = readFile (SPIFFS, TIMELAPSE);
   pirState = readFile (SPIFFS, PIRSAVE);
+  ledsaveState = readFile (SPIFFS, LEDSAVE);
+
+
+  //writeFile(SPIFFS, LEDSAVE, "pirON");
+  ledState = ledsaveState;
+
 
 #if (USEPIR ==1)
 
@@ -1204,6 +1212,8 @@ pir_enabled = false;
   Serial.println(pass);
   Serial.println(tokentelegram);
   Serial.println(timeLapse);
+  Serial.println(pirState);
+  Serial.println(ledsaveState);
  // Serial.println(logger);
 
 
@@ -1404,6 +1414,7 @@ delay(200);
 
     server.on("/temp", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledState = "temp";
+      writeFile(SPIFFS, LEDSAVE, "temp");
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });  
 
@@ -1576,6 +1587,8 @@ delay(200);
     server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request) {
       ledoff();
       ledState = "ledoff";
+      writeFile(SPIFFS, LEDSAVE, "ledoff");
+
       request->send(SPIFFS, "/index.html", "text/html", false, processor);
     });
  // Route to set GPIO state to HIGH
@@ -2298,6 +2311,13 @@ tempoumidade = millis();
         
        }
 
+       
+
+
+
+    
+#if (BLEX == 1)
+        
         if (input.indexOf("ble") > -1)//Caso o texto recebido contenha "ON"
       {
 
@@ -2315,6 +2335,9 @@ tempoumidade = millis();
         
        }
 
+
+    
+#endif
 
 
   }
